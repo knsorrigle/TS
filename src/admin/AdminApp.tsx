@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Eye, EyeOff, Loader2, LogOut, ShieldAlert, ArrowLeft, CalendarDays, Megaphone, Images, Users, Database } from 'lucide-react'
+import { Eye, EyeOff, Loader2, LogOut, ShieldAlert, ArrowLeft, CalendarDays, Megaphone, Images, Users, Database, UserRound } from 'lucide-react'
 import { isDemo, signIn, signOut, watchAdmin, type AdminState } from './adminApi'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { EventsTab } from './EventsTab'
 import { BulletinsTab } from './BulletinsTab'
 import { PastTab } from './PastTab'
 import { RegistrationsTab } from './RegistrationsTab'
+import { TeamTab } from './TeamTab'
 import { SchemaTab } from './SchemaTab'
 import { Field, Input } from './ui'
 
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'events', label: 'Events & Sessions', icon: CalendarDays, el: EventsTab },
   { id: 'bulletins', label: 'Bulletins & News', icon: Megaphone, el: BulletinsTab },
   { id: 'gallery', label: 'Past Event Gallery', icon: Images, el: PastTab },
+  { id: 'team', label: 'Team', icon: UserRound, el: TeamTab },
   { id: 'registrations', label: 'Student Registrations', icon: Users, el: RegistrationsTab },
   { id: 'schema', label: 'Database & Schema', icon: Database, el: SchemaTab },
 ] as const

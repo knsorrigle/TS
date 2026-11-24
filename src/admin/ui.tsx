@@ -70,7 +70,7 @@ export function Drawer({ title, open, onClose, children, footer, busy }: { title
 }
 
 /** Upload to the event-images bucket (≤5 MB, jpg/png/webp) or paste a URL. */
-export function ImageField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function ImageField({ value, onChange, label = 'Image' }: { value: string; onChange: (v: string) => void; label?: string }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [drag, setDrag] = useState(false)
@@ -87,7 +87,7 @@ export function ImageField({ value, onChange }: { value: string; onChange: (v: s
   }
 
   return (
-    <Field label="Image" hint="JPG, PNG or WebP · max 5 MB" error={err}>
+    <Field label={label} hint="JPG, PNG or WebP · max 5 MB" error={err}>
       <div
         onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
         onDragLeave={() => setDrag(false)}

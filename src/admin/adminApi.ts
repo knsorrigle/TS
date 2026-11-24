@@ -1,10 +1,10 @@
 import type { Session } from '@supabase/supabase-js'
 import { getSupabase, EVENT_IMAGES_BUCKET, notifyDataUpdated } from '../lib/supabase'
 import {
-  isDemo, toEvent, fromEvent, toAnnouncement, fromAnnouncement, toPastEvent, fromPastEvent, toRegistration,
+  isDemo, toTeam, fromTeam, type TeamMember, type TeamRow, toEvent, fromEvent, toAnnouncement, fromAnnouncement, toPastEvent, fromPastEvent, toRegistration,
   type TSEvent, type Announcement, type PastEvent, type Registration, type EventRow, type AnnouncementRow, type PastEventRow, type RegistrationRow,
 } from '../lib/api'
-import { demoEvents, demoAnnouncements, demoPastEvents } from '../lib/demo'
+import { demoEvents, demoAnnouncements, demoPastEvents, demoTeam } from '../lib/demo'
 
 export { isDemo }
 
@@ -186,6 +186,38 @@ export async function deletePast(id: string) {
   const { error } = await (await db()).from('techspark_past_events').delete().eq('id', id)
   if (error) throw new Error(error.message)
   done(undefined)
+}
+
+/* ───────── Team ───────── */
+export async function listTeam(): Promise<TeamMember[]> {
+  if (isDemo) return [...demoTeam].sort((a, b) => a.sortOrder - b.sortOrder)
+  const { data, error } = await (await db()).from('techspark_team').select('*').order('sort_order', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data as TeamRow[]).map(toTeam)
+}
+export async function saveTeam(t: Partial<TeamMember> & { name: string }, id?: string): Promise<TeamMember> {
+  if (isDemo) {
+    if (id) { const i = demoTeam.findIndex((x) => x.id === id); demoTeam[i] = { ...demoTeam[i], ...t } as TeamMember; return done(demoTeam[i]) }
+    const c = { id: demoId(), createdAt: now(), role: '', photo: '', photoFun: '', sortOrder: demoTeam.length, published: false, ...t } as TeamMember
+    demoTeam.push(c)
+    return done(c)
+  }
+  const row = fromTeam(t)
+  const q = id ? (await db()).from('techspark_team').update(row).eq('id', id) : (await db()).from('techspark_team').insert(row)
+  const { data, error } = await q.select('*').single()
+  if (error) throw new Error(error.message)
+  return done(toTeam(data as TeamRow))
+}
+export async function deleteTeam(id: string) {
+  if (isDemo) { demoTeam.splice(demoTeam.findIndex((e) => e.id === id), 1); return done(undefined) }
+  const { error } = await (await db()).from('techspark_team').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  done(undefined)
+}
+/** Swap two members' sort order. */
+export async function swapTeamOrder(a: TeamMember, b: TeamMember) {
+  await saveTeam({ ...a, sortOrder: b.sortOrder }, a.id)
+  await saveTeam({ ...b, sortOrder: a.sortOrder }, b.id)
 }
 
 /* ───────── Registrations ───────── */

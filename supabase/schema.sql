@@ -98,6 +98,18 @@ create table if not exists public.techspark_past_events (
   created_at    timestamptz not null default now()
 );
 
+-- ─────────────────────────────── Team ───────────────────────────────
+create table if not exists public.techspark_team (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  role        text,
+  photo       text,
+  photo_fun   text,          -- shown on hover
+  sort_order  integer not null default 0,
+  published   boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
 -- ─────────────────────────────── Registrations ───────────────────────────────
 create table if not exists public.techspark_registrations (
   id             uuid primary key default gen_random_uuid(),
@@ -226,6 +238,7 @@ alter table public.techspark_events        enable row level security;
 alter table public.techspark_categories    enable row level security;
 alter table public.techspark_announcements enable row level security;
 alter table public.techspark_past_events   enable row level security;
+alter table public.techspark_team          enable row level security;
 alter table public.techspark_registrations enable row level security;
 
 -- admins: a signed-in user can read their own row (the client uses this to read `role`).
@@ -234,11 +247,11 @@ drop policy if exists "admins read self" on public.techspark_admins;
 create policy "admins read self" on public.techspark_admins
   for select to authenticated using (id = auth.uid() or public.is_admin());
 
--- events / announcements / past events: public sees published rows; admins see and write everything.
+-- events / announcements / past events / team: public sees published rows; admins see and write everything.
 do $$
 declare t text;
 begin
-  foreach t in array array['techspark_events', 'techspark_announcements', 'techspark_past_events'] loop
+  foreach t in array array['techspark_events', 'techspark_announcements', 'techspark_past_events', 'techspark_team'] loop
     execute format('drop policy if exists "public read published" on public.%I', t);
     execute format('create policy "public read published" on public.%I for select to anon, authenticated using (published = true or public.is_admin())', t);
     execute format('drop policy if exists "admin write" on public.%I', t);
@@ -264,7 +277,7 @@ create policy "admin delete" on public.techspark_registrations for delete to aut
 revoke insert on public.techspark_registrations from anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
---  Storage: event-images (public read, admin write)
+--  Storage: event-images (public read, admin write) — event, gallery and team photos
 -- ════════════════════════════════════════════════════════════════════════════
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('event-images', 'event-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
