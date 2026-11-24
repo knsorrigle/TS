@@ -33,7 +33,7 @@ export function Intro() {
   }, [])
 
   return (
-    <section ref={root} id="intro" aria-labelledby="intro-title" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-[var(--section-pad)] pt-[calc(var(--section-pad)*0.7)]">
+    <section ref={root} id="intro" aria-labelledby="intro-title" data-spark="0.36 0.1 0.8 0.35" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-[var(--section-pad)] pt-[calc(var(--section-pad)*0.7)]">
       {/* the hero's line arrives here */}
       <div aria-hidden className="absolute left-1/2 top-0 h-[22vh] w-px -translate-x-1/2 bg-gradient-to-b from-frost via-spark/70 to-transparent shadow-[0_0_14px_rgb(26_159_232/0.8)]" />
 
@@ -46,10 +46,10 @@ export function Intro() {
         <div aria-hidden className="mt-[clamp(48px,8vh,96px)] flex flex-col items-center">
           {WORDS.map((w, i) => (
             <div key={w} data-word className="relative">
-              <span className="t-poster block text-[clamp(64px,17.5vw,300px)] text-[#0d1526]">{w}</span>
+              <span className="t-serif block text-[clamp(72px,18vw,320px)] leading-[0.86] text-[#0d1526]">{w}</span>
               <span
                 data-lit
-                className="t-poster absolute inset-0 block text-[clamp(64px,17.5vw,300px)] text-frost [text-shadow:0_0_40px_rgb(26_159_232/0.55),0_0_2px_rgb(232_241_255/0.6)]"
+                className="t-serif absolute inset-0 block text-[clamp(72px,18vw,320px)] leading-[0.86] text-white [text-shadow:0_0_40px_rgb(26_159_232/0.55),0_0_2px_rgb(232_241_255/0.6)]"
                 style={{ clipPath: 'inset(0 0 100% 0)' }}
               >
                 {w}

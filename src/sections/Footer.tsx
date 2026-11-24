@@ -1,70 +1,108 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
-import { Mail, ArrowUp, Copy } from 'lucide-react'
-import { GithubIcon, InstagramIcon } from '../components/BrandIcons'
-import { CLUB_GITHUB_URL, SECTIONS, SITE } from '../lib/site'
+import { ArrowUp } from 'lucide-react'
+import { CLUB_GITHUB_URL, SITE } from '../lib/site'
 import { copyText } from '../lib/calendar'
-import { getLenis, scrollToTarget } from '../lib/motion'
+import { getLenis, reducedMotion, whenLenis } from '../lib/motion'
+import { flareSpark } from '../three/sparkState'
 
-export function Footer() {
+export function Footer({ loop = false }: { loop?: boolean }) {
   const top = () => { const l = getLenis(); l ? l.scrollTo(0, { duration: 2 }) : scrollTo({ top: 0, behavior: 'smooth' }) }
+  const [user, domain] = SITE.email.split('@')
   return (
-    <footer className="relative overflow-hidden border-t border-line bg-void px-[var(--gutter)] pt-[clamp(64px,10vh,120px)]">
-      <div className="mx-auto grid max-w-[1440px] gap-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]">
-        <div>
-          <Link to="/" viewTransition className="inline-flex items-center gap-3" aria-label="TECHSPARK — home">
-            <img src="/logo-128.webp" alt="" width={44} height={44} loading="lazy" className="h-11 w-11" />
-            <span className="text-[14px] font-[680] uppercase tracking-[0.05em] text-frost">Techspark</span>
-          </Link>
-          <p className="t-body mt-6 max-w-[38ch]">A student-led college club hosting engaging technical, non-technical, and fun events across campus.</p>
-          <p className="t-meta mt-6 leading-relaxed">{SITE.dept}<br />{SITE.college}, {SITE.city}</p>
+    <>
+      <footer data-spark="-0.36 0.12 0.7 3.0" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-10 pt-[clamp(96px,16vh,200px)]">
+        <div className="mx-auto max-w-[1440px]">
+          <p className="t-label text-mute-hi">Say hello</p>
+          <button
+            type="button"
+            onClick={() => { copyText(SITE.email, 'Copied! Email us anytime.'); flareSpark(0.5) }}
+            data-cursor="COPY"
+            className="t-h1 above-spark group mt-6 block text-left text-[clamp(52px,9.6vw,170px)] leading-[0.88] transition-colors"
+            aria-label={`Copy email address ${SITE.email}`}
+          >
+            <span className="block break-all sm:break-normal">{user}</span>
+            <span className="block text-white/55 transition-colors duration-500 group-hover:text-white">@{domain}</span>
+          </button>
+
+          <div className="above-spark mt-[clamp(64px,10vh,120px)] grid gap-10 border-t border-white/15 pt-8 sm:grid-cols-[1fr_1fr_auto]">
+            <div>
+              <p className="t-label text-mute-hi">Follow us</p>
+              <ul className="mt-3 space-y-1.5 text-[15px]">
+                <li><a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="link-u">Instagram <span className="sr-only">(opens in a new tab)</span></a></li>
+                {CLUB_GITHUB_URL && <li><a href={CLUB_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="link-u">GitHub</a></li>}
+                <li><a href={`mailto:${SITE.email}`} className="link-u">Email</a></li>
+              </ul>
+            </div>
+            <div>
+              <p className="t-label text-mute-hi">Find us</p>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/85">{SITE.dept}<br />{SITE.college}, {SITE.city}</p>
+            </div>
+            <div className="flex flex-col items-start gap-3 sm:items-end">
+              <Link to="/" viewTransition aria-label="TECHSPARK — home" className="flex items-center gap-2.5">
+                <img src="/logo-128.webp" alt="" width={40} height={40} loading="lazy" className="h-10 w-10" />
+                <span className="text-[13px] font-[680] uppercase tracking-[0.05em]">Techspark</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="above-spark mt-10 flex flex-wrap items-center justify-between gap-4">
+            <p className="t-meta">© 2026 TECHSPARK Student Club. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <Link to="/admin" viewTransition className="t-meta transition-colors hover:text-white">Admin</Link>
+              <button type="button" onClick={top} className="t-meta inline-flex items-center gap-2 transition-colors hover:text-white">Back to top <ArrowUp size={13} /></button>
+            </div>
+          </div>
         </div>
+      </footer>
+      {loop && <LoopTail />}
+    </>
+  )
+}
 
-        <nav aria-label="Footer">
-          <p className="t-label text-mute-hi">Directory</p>
-          <ol className="mt-5 space-y-2.5">
-            {SECTIONS.map((s, i) => (
-              <li key={s.id}>
-                <a href={`/#${s.id}`} onClick={(e) => { if (location.pathname === '/') { e.preventDefault(); scrollToTarget(s.id) } }} className="group inline-flex items-baseline gap-3 text-[15px] text-frost/85 transition-colors hover:text-frost">
-                  <span className="t-num text-[12px] font-[620] text-spark">0{i + 1}</span>
-                  <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 ease-[var(--ease-expo)] group-hover:bg-[length:100%_1px]">{s.long}</span>
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <div>
-          <p className="t-label text-mute-hi">Channels & connect</p>
-          <ul className="mt-5 space-y-3">
-            <li>
-              <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-[15px] text-frost/85 transition-colors hover:text-frost">
-                <InstagramIcon /> @techspark.navkis <span className="sr-only">(opens in a new tab)</span>
-              </a>
-            </li>
-            <li className="flex items-center gap-2">
-              <a href={`mailto:${SITE.email}`} className="inline-flex items-center gap-3 text-[15px] text-frost/85 transition-colors hover:text-frost"><Mail size={17} aria-hidden /> {SITE.email}</a>
-              <button type="button" onClick={() => copyText(SITE.email, 'Email copied')} aria-label="Copy email address" className="grid h-8 w-8 place-items-center rounded-full text-mute-hi transition-colors hover:bg-white/5 hover:text-frost"><Copy size={14} /></button>
-            </li>
-            {CLUB_GITHUB_URL && (
-              <li><a href={CLUB_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 text-[15px] text-frost/85 transition-colors hover:text-frost"><GithubIcon /> GitHub</a></li>
-            )}
-          </ul>
-        </div>
+/**
+ * The page never ends: a replica of the hero rises from below; once it fills the viewport we jump to the
+ * real hero at scroll 0 (identical frame), and the crystal is already back in its hero pose.
+ */
+function LoopTail() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (reducedMotion()) return
+    // keyboard users pressing End/PageDown expect to land on the footer, not be thrown back to the top
+    let lastKey = 0
+    const onKey = () => { lastKey = performance.now() }
+    addEventListener('keydown', onKey)
+    const stop = whenLenis((l) => {
+    let armed = true
+    const off = l.on('scroll', () => {
+      if (!armed || performance.now() - lastKey < 1500) return
+      if (l.scroll >= l.limit - 1) {
+        armed = false
+        l.scrollTo(0, { immediate: true, force: true })
+        setTimeout(() => { armed = true }, 600)
+      }
+    })
+    // already parked at the bottom? a further wheel/swipe down carries you over the seam
+    const offV = l.on('virtual-scroll', ({ deltaY }) => {
+      if (!armed || deltaY <= 0 || performance.now() - lastKey < 1500) return
+      if (l.scroll >= l.limit - 2) {
+        armed = false
+        l.scrollTo(0, { immediate: true, force: true })
+        setTimeout(() => { armed = true }, 600)
+      }
+    })
+    return () => { off(); offV() }
+    })
+    return () => { stop(); removeEventListener('keydown', onKey) }
+  }, [])
+  if (reducedMotion()) return null
+  return (
+    <div ref={ref} aria-hidden data-spark="0 0 1.25 0" className="relative h-[100svh] overflow-hidden bg-void">
+      <img src="/hero-still.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white">
+        <span className="t-serif above-spark block pb-[0.04em] text-[clamp(112px,23vw,400px)] leading-[0.78]">Tech</span>
+        <span className="t-serif relative z-20 mt-[clamp(10px,2.2vw,34px)] block pb-[0.06em] text-[clamp(112px,23vw,400px)] leading-[0.78]">Spark</span>
       </div>
-
-      <div className="mx-auto mt-16 flex max-w-[1440px] flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
-        <p className="t-meta">© 2026 TECHSPARK Student Club. All rights reserved.</p>
-        <div className="flex items-center gap-6">
-          <Link to="/admin" viewTransition className="t-meta transition-colors hover:text-frost">Admin login</Link>
-          <button type="button" onClick={top} className="t-meta inline-flex items-center gap-2 transition-colors hover:text-frost">Back to top <ArrowUp size={13} /></button>
-        </div>
-      </div>
-
-      {/* the giant wordmark, cropped by the page edge and lit from beneath */}
-      <div aria-hidden className="relative mt-10 select-none">
-        <p className="footer-mark t-poster translate-y-[22%] text-center text-[clamp(96px,24.5vw,440px)] leading-[0.8]">Techspark</p>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-spark to-transparent shadow-[0_0_30px_6px_rgb(26_159_232/0.75)]" />
-      </div>
-    </footer>
+    </div>
   )
 }

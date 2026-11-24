@@ -1,4 +1,6 @@
 @import '@fontsource-variable/mona-sans/wdth.css';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
 @import 'tailwindcss';
 
 /* ───────────────────────── Tokens ───────────────────────── */
@@ -17,7 +19,8 @@
   --color-ember: #ff5a3c;
   --color-amber: #ffc46b;
 
-  --font-display: 'Mona Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Instrument Serif', 'Times New Roman', serif;
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
   --font-sans: 'Mona Sans Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Mona Sans Variable', ui-sans-serif, system-ui, sans-serif; /* numerics use tabular figures, not a mono face */
 
@@ -96,13 +99,15 @@
     color: var(--color-frost);
   }
   .t-num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+  /* editorial serif display (the Redis lesson): huge, tight, white */
   .t-h1 {
-    font-family: var(--font-display);
-    font-weight: 470;
-    font-stretch: 100%;
-    letter-spacing: -0.045em;
-    line-height: 0.96;
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 0.9;
+    color: #fff;
   }
+  .t-serif { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.02em; }
   .t-h2 {
     font-family: var(--font-display);
     font-weight: 500;
@@ -110,7 +115,7 @@
     line-height: 1.05;
   }
   .t-poster {
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     font-weight: 720;
     font-stretch: 75%;
     text-transform: uppercase;
@@ -164,7 +169,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    border: 1px solid var(--color-line-strong);
+    border: 1px solid rgb(255 255 255 / 0.55);
     transition: border-color 0.4s;
     z-index: -1;
   }
@@ -179,12 +184,13 @@
     z-index: -1;
   }
   .pill:hover::after { transform: translateX(110%); }
-  .pill:hover::before { border-color: rgb(232 241 255 / 0.5); }
+  .pill:not(.pill--solid):not(.pill--spark):not(.pill--ghost):hover { background: #fff; color: #000; }
+  .pill:hover::before { border-color: #fff; }
   .pill:active { transform: scale(0.97); }
   .pill:disabled, .pill[aria-disabled='true'] { opacity: 0.38; pointer-events: none; }
 
   .pill--solid {
-    background: var(--color-frost);
+    background: #fff;
     color: var(--color-void);
   }
   .pill--solid::before { border-color: transparent; }
@@ -420,3 +426,26 @@ section:has(.relight:hover) .dead-spark, section:has(.relight:focus-visible) .de
 .admin-drawer { animation: drawer-in 0.7s var(--ease-expo) both; }
 @keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
+
+/* the crystal passes behind these (components layer, so `absolute`/`fixed` utilities still win) */
+@layer components { .above-spark { position: relative; z-index: 40; } }
+
+/* Redis-style pill nav */
+.nav-pill {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 15px; border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.55); color: #fff; font-size: 13.5px; font-weight: 500;
+  transition: background-color 0.4s, color 0.4s, border-color 0.4s;
+}
+.nav-pill:hover, .nav-pill.is-active { background: #fff; color: #000; border-color: #fff; }
+.pill--ghost { background: rgb(0 0 0 / 0.35); backdrop-filter: blur(8px); }
+.pill--ghost::before { border-color: rgb(255 255 255 / 0.22) !important; }
+.nav-scrim { background: linear-gradient(180deg, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0)); }
+
+/* endless keyword strip */
+.marquee { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marquee__track { display: flex; width: max-content; animation: marquee 48s linear infinite; }
+.marquee:hover .marquee__track { animation-play-state: paused; }
+.marquee__set { display: flex; gap: clamp(24px, 3vw, 48px); padding-right: clamp(24px, 3vw, 48px); }
+@keyframes marquee { to { transform: translateX(-50%); } }
+.link-u { background: linear-gradient(currentColor, currentColor) left bottom / 0% 1px no-repeat; transition: background-size 0.6s var(--ease-expo), color 0.3s; color: rgb(255 255 255 / 0.85); }
+.link-u:hover { background-size: 100% 1px; color: #fff; }

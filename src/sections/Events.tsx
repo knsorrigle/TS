@@ -1,14 +1,14 @@
 import { useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Search, X, RotateCw, MapPin, Clock, Mic2 } from 'lucide-react'
+import { Search, X, RotateCw } from 'lucide-react'
 import { fetchEvents, isDemo, type TSEvent } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
 import { CATEGORY_META, categoryKey, type CategoryKey } from '../lib/site'
 import { eventStart, formatDateShort } from '../lib/time'
-import { isUpcoming } from '../lib/status'
-import { SectionHead } from '../components/SectionHead'
-import { EventCard, RegisterButton, SeatLine, Soon } from '../components/EventCard'
+import { isUpcoming, seatState } from '../lib/status'
+import { leanSpark } from '../three/sparkState'
+import { RegisterButton, Soon } from '../components/EventCard'
 import { Duotone } from '../components/Duotone'
 import { Skeleton } from '../components/Skeleton'
 
@@ -21,7 +21,7 @@ const FILTERS: { key: 'all' | CategoryKey; label: string }[] = [
 
 function sortEvents(list: TSEvent[]) {
   const t = (e: TSEvent) => eventStart(e.date, e.time)?.getTime() ?? Infinity
-  const up = list.filter((e) => isUpcoming(e)).sort((a, b) => t(a) - t(b))
+  const up = list.filter((e) => isUpcoming(e)).sort((a, b) => Number(b.featured) - Number(a.featured) || t(a) - t(b))
   const past = list.filter((e) => !isUpcoming(e)).sort((a, b) => t(b) - t(a))
   return [...up, ...past]
 }
@@ -41,7 +41,6 @@ export function Events() {
   }
 
   const sorted = useMemo(() => (events.status === 'success' ? sortEvents(events.data) : []), [events.status, events.data])
-  const featured = useMemo(() => sorted.find((e) => e.featured && isUpcoming(e)) ?? sorted.find((e) => isUpcoming(e)) ?? null, [sorted])
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return sorted.filter((e) => {
@@ -50,98 +49,62 @@ export function Events() {
       return [e.title, e.description, e.location, e.speaker, e.category, ...e.tags].join(' ').toLowerCase().includes(needle)
     })
   }, [sorted, q, cat])
-  const filtering = q.trim() !== '' || cat !== 'all'
-  const showFeatured = !filtering && featured
-  const grid = showFeatured ? filtered.filter((e) => e.id !== featured!.id) : filtered
 
-  useReveals(root, [events.status, grid.length, cat])
+  useReveals(root, [events.status, filtered.length, cat])
 
   return (
-    <section ref={root} id="events" aria-labelledby="events-title" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
+    <section ref={root} id="events" aria-labelledby="events-title" data-spark="-0.4 0.05 0.65 1.3" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1440px]">
-        <SectionHead index="04" label="Campus schedule" aside={isDemo ? 'Demo data · dev only' : undefined} />
-
-        <div className="mt-8 flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
-          <h2 id="events-title" className="t-h1 text-[clamp(44px,6.4vw,108px)] text-frost" data-reveal="lines">Upcoming events</h2>
-          <p className="t-meta pb-2" aria-live="polite">
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+          <h2 id="events-title" className="t-h1 above-spark text-[clamp(72px,13vw,220px)]" data-reveal="lines">Events</h2>
+          <p className="t-meta pb-4" aria-live="polite">
+            {isDemo && <span className="mr-3 text-amber">Demo data · dev only</span>}
             {events.status === 'success'
-              ? <>Showing <span className="text-frost">{filtered.length}</span> published campus session{filtered.length === 1 ? '' : 's'}</>
-              : events.status === 'loading' ? 'Loading sessions…' : '—'}
+              ? <>Showing <span className="text-white">{filtered.length}</span> published campus session{filtered.length === 1 ? '' : 's'}</>
+              : events.status === 'loading' ? 'Loading sessions…' : ''}
           </p>
         </div>
 
-        {/* controls */}
-        <div className="mt-10 flex flex-col gap-4 lg:flex-row lg:items-center">
-          <label className={`living flex h-[52px] w-full items-center gap-3 pl-5 pr-2 lg:max-w-[420px] ${q ? 'is-live' : ''}`}>
-            <Search size={17} className="shrink-0 text-mute-hi" aria-hidden />
-            <span className="sr-only">Search events</span>
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => set('q', e.target.value)}
-              placeholder="Search events, venues, speakers"
-              className="h-full w-full bg-transparent text-[15.5px] text-frost caret-spark outline-none placeholder:text-mute [&::-webkit-search-cancel-button]:hidden"
-            />
-            {q && (
-              <button type="button" onClick={() => set('q', '')} aria-label="Clear search" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-mute-hi transition-colors hover:bg-white/5 hover:text-frost">
-                <X size={15} />
-              </button>
-            )}
-          </label>
-          <div role="radiogroup" aria-label="Filter by category" className="no-scrollbar -mx-[var(--gutter)] flex gap-2 overflow-x-auto px-[var(--gutter)] lg:mx-0 lg:px-0">
+        {/* controls: filter pills + living search */}
+        <div className="above-spark mt-10 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div role="radiogroup" aria-label="Filter by category" className="no-scrollbar -mx-[var(--gutter)] flex gap-1.5 overflow-x-auto px-[var(--gutter)] lg:mx-0 lg:px-0">
             {FILTERS.map((f) => {
               const on = cat === f.key
               const meta = f.key === 'all' ? null : CATEGORY_META[f.key]
               return (
-                <button
-                  key={f.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => set('cat', f.key)}
-                  className={`living h-11 shrink-0 px-5 text-[13.5px] font-[540] transition-colors ${on ? 'is-live text-frost' : 'text-mute-hi hover:text-frost'}`}
-                  style={meta ? ({ '--lg-glow': meta.glow, '--lg-glow2': meta.glow } as React.CSSProperties) : undefined}
-                >
-                  {meta && <span aria-hidden className="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: meta.to, boxShadow: `0 0 8px ${meta.to}` }} />}
+                <button key={f.key} type="button" role="radio" aria-checked={on} onClick={() => set('cat', f.key)} className={`nav-pill shrink-0 !h-10 !px-4 ${on ? 'is-active' : ''}`}>
+                  {meta && <span aria-hidden className="mr-2 inline-block h-1.5 w-1.5 rounded-full" style={{ background: meta.to, boxShadow: `0 0 8px ${meta.to}` }} />}
                   {f.label}
                 </button>
               )
             })}
           </div>
+          <label className={`living flex h-11 w-full items-center gap-3 pl-4 pr-1.5 lg:max-w-[380px] ${q ? 'is-live' : ''}`}>
+            <Search size={16} className="shrink-0 text-mute-hi" aria-hidden />
+            <span className="sr-only">Search events</span>
+            <input type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Search events, venues, speakers"
+              className="h-full w-full bg-transparent text-[15px] text-white caret-spark outline-none placeholder:text-mute [&::-webkit-search-cancel-button]:hidden" />
+            {q && <button type="button" onClick={() => set('q', '')} aria-label="Clear search" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-mute-hi hover:bg-white/10 hover:text-white"><X size={14} /></button>}
+          </label>
         </div>
 
-        {/* states */}
-        <div className="mt-12">
+        <div className="mt-[clamp(48px,8vh,96px)]">
           {events.status === 'loading' && <LoadingState />}
           {events.status === 'error' && (
-            <StateCard
-              title="Unable to load upcoming campus sessions at this time."
-              body="Please check back soon or contact the club leads."
-              action={<button type="button" onClick={events.reload} className="pill pill--sm"><RotateCw size={13} /> Try again</button>}
-            />
+            <StateCard title="Unable to load upcoming campus sessions at this time." body="Please check back soon or contact the club leads."
+              action={<button type="button" onClick={events.reload} className="pill pill--sm"><RotateCw size={13} /> Try again</button>} />
           )}
           {events.status === 'success' && sorted.length === 0 && (
-            <StateCard title="No sessions published yet." body="Something’s sparking — check back soon." spark />
+            <StateCard title="No events live right now." body="Something’s sparking — check back soon." spark />
           )}
           {events.status === 'success' && sorted.length > 0 && filtered.length === 0 && (
-            <StateCard
-              title="Nothing matches that."
-              body={`No sessions for “${q || FILTERS.find((f) => f.key === cat)?.label}”. Try another word or category.`}
-              action={<button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="pill pill--sm">Clear filters</button>}
-            />
+            <StateCard title="Nothing matches that." body={`No sessions for “${q || FILTERS.find((f) => f.key === cat)?.label}”. Try another word or category.`}
+              action={<button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="pill pill--sm">Clear filters</button>} />
           )}
           {events.status === 'success' && filtered.length > 0 && (
-            <>
-              {showFeatured && <Featured e={featured!} />}
-              {grid.length > 0 && (
-                <div className={`grid gap-px bg-line sm:grid-cols-2 xl:grid-cols-3 ${showFeatured ? 'mt-px' : ''}`}>
-                  {grid.map((e, i) => <EventCard key={e.id} e={e} index={i} />)}
-                  {/* complete the last row so the hairline grid never shows an empty grey slot */}
-                  {Array.from({ length: (3 - (grid.length % 3)) % 3 }).map((_, i) => <Filler key={`x${i}`} className="hidden xl:flex" />)}
-                  {Array.from({ length: grid.length % 2 }).map((_, i) => <Filler key={`s${i}`} className="hidden sm:flex xl:hidden" />)}
-                </div>
-              )}
-            </>
+            <ol className="mx-auto flex max-w-[1080px] flex-col gap-[clamp(72px,12vh,140px)]">
+              {filtered.map((e, i) => <Case key={e.id} e={e} first={i === 0 && !q && cat === 'all'} />)}
+            </ol>
           )}
         </div>
       </div>
@@ -149,76 +112,73 @@ export function Events() {
   )
 }
 
-function Featured({ e }: { e: TSEvent }) {
+/** Redis "case": a big rounded image card, then centred title + one line below. */
+function Case({ e, first }: { e: TSEvent; first: boolean }) {
   const meta = CATEGORY_META[categoryKey(e.category)]
-  const [dd, mon] = formatDateShort(e.date).split(' ')
+  const s = seatState(e)
+  const lean = (el: HTMLElement | null) => {
+    if (!el) return leanSpark(null)
+    const r = el.getBoundingClientRect()
+    leanSpark({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+  }
   return (
-    <article className="group relative grid overflow-hidden bg-ink lg:grid-cols-[1.45fr_1fr]" data-reveal="up">
-      <span aria-hidden className="absolute inset-x-0 top-0 z-10 h-px" style={{ background: `linear-gradient(90deg, ${meta.from}, ${meta.to}, transparent 80%)` }} />
-      <Link to={`/events/${e.slug}`} viewTransition className="relative block aspect-[16/10] lg:aspect-auto lg:min-h-[520px]" data-cursor="VIEW" aria-label={`${e.title} — details`}>
-        <Duotone src={e.image} alt={e.title} category={e.category} eager className="absolute inset-0" label={e.image ? undefined : meta.short} />
-        <span className="t-label absolute left-4 top-4 z-10 rounded-full bg-void/60 px-3 py-1.5 backdrop-blur">Featured</span>
-      </Link>
-      <div className="flex flex-col p-6 sm:p-10">
-        <div className="flex items-start justify-between gap-4">
-          <div className="t-num leading-[0.82] text-frost">
-            <span className="block text-[clamp(72px,8vw,132px)] font-[300] tracking-[-0.04em] [font-stretch:75%]">{dd}</span>
-            <span className="t-label mt-2 block text-spark">{mon}</span>
-          </div>
+    <li className="group" data-reveal="up">
+      <Link
+        to={`/events/${e.slug}`}
+        viewTransition
+        data-cursor="VIEW"
+        onPointerEnter={(ev) => lean(ev.currentTarget)}
+        onPointerLeave={() => lean(null)}
+        onFocus={(ev) => lean(ev.currentTarget)}
+        onBlur={() => lean(null)}
+        className="relative block aspect-[16/10] overflow-hidden rounded-[clamp(20px,2.4vw,36px)] outline-offset-4 sm:aspect-[16/9]"
+        aria-label={`${e.title} — details`}
+      >
+        <Duotone src={e.image} alt={e.title} category={e.category} eager={first} className="absolute inset-0 transition-transform duration-[1400ms] ease-[var(--ease-expo)] group-hover:scale-[1.03]" />
+        <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2 sm:left-6 sm:top-6">
+          {first && e.featured && <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-[650] uppercase tracking-[0.06em] text-black">Featured</span>}
           <Soon e={e} />
         </div>
-        <p className="t-meta mt-8" style={{ color: meta.to }}>{meta.label}</p>
-        <h3 className="t-h1 mt-3 text-[clamp(32px,3.2vw,52px)] text-frost" style={{ viewTransitionName: `title-${e.slug}` }}>{e.title}</h3>
-        <p className="t-body mt-4">{e.description}</p>
-        <ul className="mt-5 grid gap-1.5 text-[14px] text-mute-hi">
-          {e.time && <li className="flex items-center gap-2"><Clock size={14} aria-hidden className="opacity-70" />{e.time}</li>}
-          {e.location && <li className="flex items-center gap-2"><MapPin size={14} aria-hidden className="opacity-70" />{e.location}</li>}
-          {e.speaker && <li className="flex items-center gap-2"><Mic2 size={14} aria-hidden className="opacity-70" />{e.speaker}</li>}
-        </ul>
-        <div className="mt-auto pt-8"><SeatLine e={e} /></div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <RegisterButton e={e} size="md" />
-          <Link to={`/events/${e.slug}`} viewTransition className="pill">Details</Link>
+        <span aria-hidden className="absolute inset-x-0 bottom-0 z-10 h-px opacity-80" style={{ background: `linear-gradient(90deg, transparent, ${meta.to}, transparent)` }} />
+      </Link>
+      <div className="above-spark mt-7 text-center">
+        <h3 className="t-h1 mx-auto max-w-[18ch] text-[clamp(34px,4.2vw,64px)]" style={{ viewTransitionName: `title-${e.slug}` }}>
+          <Link to={`/events/${e.slug}`} viewTransition className="transition-opacity hover:opacity-80">{e.title}</Link>
+        </h3>
+        <p className="t-num mx-auto mt-3 max-w-[70ch] text-[14.5px] text-mute-hi">
+          {[formatDateShort(e.date), e.time, e.location, meta.short].filter(Boolean).join(' · ')}
+          <span className="mx-2 text-white/25">·</span>
+          <span className={s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}>{s.label}</span>
+        </p>
+        <div className="mt-6 flex justify-center gap-2">
+          <RegisterButton e={e} />
+          <Link to={`/events/${e.slug}`} viewTransition className="pill pill--sm">Details</Link>
         </div>
       </div>
-    </article>
-  )
-}
-
-function Filler({ className }: { className: string }) {
-  return (
-    <div aria-hidden className={`flex-col items-center justify-center gap-4 bg-ink p-8 ${className}`}>
-      <span className="h-1 w-1 rounded-full bg-frost/50 shadow-[0_0_14px_3px_rgb(26_159_232/0.35)]" />
-      <span className="t-meta">More sessions soon</span>
-    </div>
+    </li>
   )
 }
 
 function LoadingState() {
   return (
-    <div aria-busy="true" aria-label="Loading events">
-      <div className="grid gap-px bg-line lg:grid-cols-[1.45fr_1fr]">
-        <Skeleton className="aspect-[16/10] lg:aspect-auto lg:min-h-[520px]" />
-        <div className="space-y-4 bg-ink p-10">
-          <Skeleton className="h-24 w-28" /><Skeleton className="h-4 w-32" /><Skeleton className="h-10 w-4/5" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" />
+    <div aria-busy="true" aria-label="Loading events" className="mx-auto flex max-w-[1080px] flex-col gap-24">
+      {[0, 1].map((i) => (
+        <div key={i}>
+          <Skeleton className="aspect-[16/9] !rounded-[32px]" />
+          <div className="mt-7 flex flex-col items-center gap-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
         </div>
-      </div>
-      <div className="mt-px grid gap-px bg-line sm:grid-cols-2 xl:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="space-y-4 bg-ink pb-6"><Skeleton className="aspect-[16/10]" /><div className="space-y-3 px-6"><Skeleton className="h-3 w-24" /><Skeleton className="h-6 w-4/5" /><Skeleton className="h-3 w-1/2" /></div></div>
-        ))}
-      </div>
+      ))}
     </div>
   )
 }
 
 export function StateCard({ title, body, action, spark }: { title: string; body: string; action?: React.ReactNode; spark?: boolean }) {
   return (
-    <div className="relative grid min-h-[320px] place-items-center overflow-hidden border border-line bg-ink px-6 py-16 text-center">
+    <div className="above-spark relative mx-auto grid min-h-[320px] max-w-[1080px] place-items-center overflow-hidden rounded-[32px] border border-white/12 bg-ink px-6 py-16 text-center">
       <div aria-hidden className="absolute left-1/2 top-[38%] h-40 w-[60%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cobalt/10 blur-3xl" />
       <div className="relative">
-        <span aria-hidden className={`mx-auto mb-8 block h-1.5 w-1.5 rounded-full bg-frost ${spark ? 'animate-pulse shadow-[0_0_20px_5px_rgb(26_159_232/0.8)]' : 'opacity-40 shadow-[0_0_14px_3px_rgb(26_159_232/0.25)]'}`} />
-        <p className="t-h2 mx-auto max-w-[26ch] text-[clamp(22px,2.2vw,30px)] text-frost">{title}</p>
+        <span aria-hidden className={`mx-auto mb-8 block h-1.5 w-1.5 rounded-full bg-white ${spark ? 'animate-pulse shadow-[0_0_20px_5px_rgb(26_159_232/0.8)]' : 'opacity-40 shadow-[0_0_14px_3px_rgb(26_159_232/0.25)]'}`} />
+        <p className="t-h1 mx-auto max-w-[22ch] text-[clamp(30px,3.2vw,46px)]">{title}</p>
         <p className="t-body mx-auto mt-3 max-w-[44ch]">{body}</p>
         {action && <div className="mt-8 flex justify-center">{action}</div>}
       </div>

@@ -6,6 +6,7 @@ import { Grain } from '../components/Grain'
 import { ScrollProgress } from '../components/ScrollProgress'
 import { Toaster } from '../components/Toaster'
 import { RegisterModal } from '../components/RegisterModal'
+import { SparkLayer } from '../components/SparkLayer'
 import { ScrollTrigger, scrollToTarget, startSmoothScroll, stopSmoothScroll } from '../lib/motion'
 import { markIntroDone } from '../lib/intro'
 
@@ -38,6 +39,7 @@ export function Layout() {
       <main id="main" tabIndex={-1} className="outline-none">
         <Outlet />
       </main>
+      <SparkLayer />
       <RegisterModal />
       <Toaster />
       <Grain />

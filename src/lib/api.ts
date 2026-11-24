@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured as isSupabaseConfiguredFlag } from './supabase'
-import { demoAnnouncements, demoEvents, demoPastEvents } from './demo'
+import { demoAnnouncements, demoEvents, demoPastEvents, demoTeam } from './demo'
 
 /** Dev without keys → fixtures. Production without keys → the designed error states. */
 export const isDemo = import.meta.env.DEV && !isSupabaseConfiguredFlag
@@ -25,7 +25,10 @@ export interface RegistrationRow {
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; created_at: string
 }
 
+export interface TeamRow { id: string; name: string; role: string | null; photo: string | null; photo_fun: string | null; sort_order: number | null; published: boolean; created_at: string }
+
 /* ───────── App models (camelCase) ───────── */
+export interface TeamMember { id: string; name: string; role: string; photo: string; photoFun: string; sortOrder: number; published: boolean; createdAt: string }
 export interface TSEvent {
   id: string; title: string; slug: string; description: string; fullDescription: string
   date: string | null; time: string; location: string; category: string; status: string
@@ -78,6 +81,13 @@ export const toRegistration = (r: RegistrationRow): Registration => ({
   studentRoll: r.student_roll, department: r.department, year: r.year, status: r.status, createdAt: r.created_at,
 })
 
+export const toTeam = (r: TeamRow): TeamMember => ({
+  id: r.id, name: r.name, role: r.role ?? '', photo: r.photo ?? '', photoFun: r.photo_fun ?? '', sortOrder: r.sort_order ?? 0, published: r.published, createdAt: r.created_at,
+})
+export const fromTeam = (t: Partial<TeamMember>): Partial<TeamRow> => strip({
+  name: t.name, role: t.role, photo: t.photo, photo_fun: t.photoFun, sort_order: t.sortOrder, published: t.published,
+})
+
 function strip<T extends object>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T
 }
@@ -116,6 +126,13 @@ export async function fetchPastEvents(): Promise<PastEvent[]> {
     .order('created_at', { ascending: false })
   if (error) throw new ApiError(error.message)
   return (data as PastEventRow[]).map(toPastEvent)
+}
+
+export async function fetchTeam(): Promise<TeamMember[]> {
+  if (isDemo) return wait(demoTeam, 600)
+  const { data, error } = await (await client()).from('techspark_team').select('*').eq('published', true).order('sort_order', { ascending: true })
+  if (error) throw new ApiError(error.message)
+  return (data as TeamRow[]).map(toTeam)
 }
 
 /* ───────── Registration ───────── */

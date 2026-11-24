@@ -15,15 +15,19 @@ export function MobileRegisterBar() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
-    let eventsVisible = false, pastHero = false
-    const update = () => setShow(pastHero && !eventsVisible)
-    const events = document.getElementById('events')
-    const io = events ? new IntersectionObserver(([e]) => { eventsVisible = e.isIntersecting; update() }) : null
-    if (events) io!.observe(events)
+    let pastHero = false
+    const hidden = new Set<Element>()
+    const update = () => setShow(pastHero && hidden.size === 0)
+    // stay out of the way where it would duplicate or cover things: the events list and the footer
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => (e.isIntersecting ? hidden.add(e.target) : hidden.delete(e.target)))
+      update()
+    })
+    ;[document.getElementById('events'), document.querySelector('footer')].forEach((el) => el && io.observe(el))
     const onScroll = () => { pastHero = scrollY > innerHeight * 1.2; update() }
     onScroll()
     addEventListener('scroll', onScroll, { passive: true })
-    return () => { removeEventListener('scroll', onScroll); io?.disconnect() }
+    return () => { removeEventListener('scroll', onScroll); io.disconnect() }
   }, [])
 
   if (!ev || reg || !seatState(ev).canRegister) return null

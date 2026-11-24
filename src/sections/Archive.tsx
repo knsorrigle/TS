@@ -6,7 +6,6 @@ import { useReveals } from '../lib/reveal'
 import { gsap, getLenis } from '../lib/motion'
 import { useDesktop, useReducedMotion } from '../lib/useMedia'
 import { CATEGORY_META, categoryKey } from '../lib/site'
-import { SectionHead } from '../components/SectionHead'
 import { Duotone } from '../components/Duotone'
 import { Skeleton } from '../components/Skeleton'
 import { StateCard } from './Events'
@@ -20,11 +19,10 @@ export function Archive() {
   useReveals(root, [list.status])
 
   return (
-    <section ref={root} id="archive" aria-labelledby="archive-title" className="relative bg-void">
+    <section ref={root} id="archive" aria-labelledby="archive-title" data-spark="-0.42 0.12 0.55 2.0" className="relative bg-void">
       <div className="mx-auto max-w-[1440px] px-[var(--gutter)] pt-[var(--section-pad)]">
-        <SectionHead index="06" label="Archive & achievements" aside="Previous campus semesters" />
-        <h2 id="archive-title" className="t-h1 mt-8 max-w-[16ch] text-[clamp(44px,6.4vw,108px)] text-frost" data-reveal="lines">Past events & achievements</h2>
-        <p className="t-body mt-4 max-w-[52ch]" data-reveal="lines" data-delay="0.1">Student collaboration sessions held across previous campus semesters.</p>
+        <h2 id="archive-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">Archive</h2>
+        <p className="t-body above-spark mt-4 max-w-[52ch]" data-reveal="lines" data-delay="0.1">Past events & achievements — student collaboration sessions held across previous campus semesters.</p>
       </div>
 
       <div className={pinned ? '' : 'px-[var(--gutter)] pb-[var(--section-pad)] pt-12'}>
@@ -50,9 +48,9 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
   const d = p.date ? new Date(`${p.date}T00:00:00`) : null
   const edge = `TS_06 · ${String(i + 1).padStart(4, '0')} · ${d ? d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }).toUpperCase() : '—'}`
   return (
-    <article className="group relative flex w-[min(80vw,440px)] shrink-0 snap-start flex-col">
+    <article className="above-spark group relative flex w-[min(80vw,440px)] shrink-0 snap-start flex-col">
       <p className="t-meta mb-3 flex justify-between"><span>{edge}</span><span style={{ color: meta.to }}>{meta.short}</span></p>
-      <div className="relative aspect-[4/5] overflow-hidden">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[28px]">
         <Duotone src={p.image} alt={p.title} category={p.category} className="absolute inset-0" />
         {p.participants > 0 && (
           <span className="t-num absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-void/65 px-3 py-1.5 text-[12px] font-[600] text-frost backdrop-blur">
@@ -60,7 +58,7 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
           </span>
         )}
       </div>
-      <h3 className="t-h2 mt-5 text-[clamp(22px,1.9vw,28px)] text-frost">{p.title}</h3>
+      <h3 className="t-h1 mt-5 text-[clamp(30px,2.6vw,40px)]">{p.title}</h3>
       <p className="t-body mt-2">{p.description}</p>
       {p.highlight && <p className="mt-3 text-[14.5px] font-[560] text-spark">★ {p.highlight}</p>}
     </article>

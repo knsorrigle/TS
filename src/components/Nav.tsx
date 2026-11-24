@@ -4,6 +4,11 @@ import { SECTIONS } from '../lib/site'
 import { getLenis, gsap, lockScroll, reducedMotion, scrollToTarget } from '../lib/motion'
 import { isIntroDone, onIntroDone } from '../lib/intro'
 import { Magnetic } from './Magnetic'
+import { useCountdown, useNextEvent } from '../lib/useEvents'
+import { eventStart } from '../lib/time'
+import { openRegister } from '../lib/registerStore'
+import { useLocalReg } from '../lib/useLocalReg'
+import { useMemo } from 'react'
 
 /** Letters stacked twice; on hover the column rolls up one line, staggered per letter. */
 function SplitLabel({ text }: { text: string }) {
@@ -119,6 +124,11 @@ export function Nav() {
     }
   }
 
+  const next = useNextEvent()
+  const registerClick = (e: React.MouseEvent) => {
+    if (next) { e.preventDefault(); setOpen(false); openRegister(next) } else go('events')(e)
+  }
+
   const solid = scrolled || open || !onHome
 
   return (
@@ -134,7 +144,7 @@ export function Nav() {
         className={[
           'fixed inset-x-0 top-0 z-[100] transition-[transform,background-color,backdrop-filter,border-color] duration-700 ease-[var(--ease-expo)]',
           hidden && !open ? '-translate-y-full' : 'translate-y-0',
-          solid ? 'border-b border-line bg-void/55 backdrop-blur-xl backdrop-saturate-150' : 'border-b border-transparent',
+          solid ? 'nav-scrim' : '',
         ].join(' ')}
       >
         <nav
@@ -158,54 +168,39 @@ export function Nav() {
             <span className="text-[13px] font-[680] uppercase tracking-[0.05em] text-frost [font-stretch:115%]">Techspark</span>
           </Link>
 
-          <div className="hidden items-center gap-10 lg:flex">
-            <ul ref={list} className="relative flex items-center gap-8">
-              {SECTIONS.map((s) => (
-                <li key={s.id}>
-                  <a
-                    href={`/#${s.id}`}
-                    data-id={s.id}
-                    onClick={go(s.id)}
-                    aria-current={active === s.id ? 'true' : undefined}
-                    className={[
-                      'group block py-3 text-[13.5px] font-[480] tracking-[-0.005em] transition-colors duration-500',
-                      active === s.id ? 'text-frost' : 'text-mute-hi hover:text-frost',
-                    ].join(' ')}
-                  >
-                    <span className="sr-only">{s.label}</span>
-                    <SplitLabel text={s.label} />
-                  </a>
-                </li>
-              ))}
-              <span
-                ref={indicator}
-                aria-hidden
-                className="pointer-events-none absolute -bottom-0.5 left-0 h-1 w-1 rounded-full bg-spark opacity-0 shadow-[0_0_10px_2px_rgb(26_159_232/0.8)]"
-              />
-            </ul>
+          <ul ref={list} className="relative hidden items-center gap-1.5 lg:flex">
+            {SECTIONS.map((sec) => (
+              <li key={sec.id}>
+                <a
+                  href={`/#${sec.id}`}
+                  data-id={sec.id}
+                  onClick={go(sec.id)}
+                  aria-current={active === sec.id ? 'true' : undefined}
+                  className={`group nav-pill ${active === sec.id ? 'is-active' : ''}`}
+                >
+                  <span className="sr-only">{sec.label}</span>
+                  <SplitLabel text={sec.label} />
+                </a>
+              </li>
+            ))}
+            <span ref={indicator} aria-hidden className="pointer-events-none absolute -bottom-2 left-0 h-1 w-1 rounded-full bg-spark opacity-0 shadow-[0_0_10px_2px_rgb(26_159_232/0.8)]" />
+          </ul>
+
+          <div className="hidden items-center gap-1.5 lg:flex">
+            <NextPill />
             <Magnetic>
-              <a href="/#events" onClick={go('events')} className="pill pill--sm" data-cursor="REGISTER">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-spark opacity-70" />
-                  <span className="relative h-1.5 w-1.5 rounded-full bg-spark" />
-                </span>
-                Register
-              </a>
+              <a href="/#events" onClick={registerClick} className="pill pill--solid pill--sm !h-9" data-cursor="REGISTER">Register</a>
             </Magnetic>
           </div>
 
           <button
             type="button"
-            className="group relative flex h-11 items-center gap-3 pl-4 text-[12px] font-[600] uppercase tracking-[0.08em] text-frost lg:hidden"
+            className="pill pill--sm !h-9 lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             onClick={() => setOpen((o) => !o)}
           >
             <span>{open ? 'Close' : 'Menu'}</span>
-            <span className="relative block h-3 w-5" aria-hidden>
-              <span className={`absolute left-0 h-px w-5 bg-frost transition-transform duration-500 ease-[var(--ease-expo)] ${open ? 'top-1.5 rotate-45' : 'top-0.5'}`} />
-              <span className={`absolute left-0 h-px bg-frost transition-all duration-500 ease-[var(--ease-expo)] ${open ? 'top-1.5 w-5 -rotate-45' : 'top-2.5 w-3'}`} />
-            </span>
           </button>
         </nav>
       </header>
@@ -216,7 +211,7 @@ export function Nav() {
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
-        className="fixed inset-0 z-[95] hidden flex-col justify-between bg-void px-[var(--gutter)] pb-10 pt-[calc(var(--nav-h)+40px)]"
+        className="fixed inset-0 z-[95] hidden flex-col justify-between bg-void/80 px-[var(--gutter)] pb-10 pt-[calc(var(--nav-h)+40px)] backdrop-blur-[2px]"
         style={{ clipPath: 'inset(0 0 100% 0)' }}
       >
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[45vh] opacity-60"
@@ -231,16 +226,34 @@ export function Nav() {
                 className="flex items-baseline gap-5 py-4 active:opacity-70"
               >
                 <span className="t-num text-[12px] font-[600] text-spark">{String(i + 1).padStart(2, '0')}</span>
-                <span className="t-h1 text-[clamp(34px,10vw,52px)] text-frost">{s.label}</span>
+                <span className="t-h1 text-[clamp(52px,16vw,88px)]">{s.label}</span>
               </a>
             </li>
           ))}
         </ol>
         <div className="relative flex items-end justify-between" data-stagger>
-          <a href="/#events" onClick={go('events')} className="pill pill--spark">Register for events</a>
+          <a href="/#events" onClick={registerClick} className="pill pill--solid">Register</a>
           <span className="t-meta text-right">Navkis College<br />of Engineering, Hassan</span>
         </div>
       </div>
     </>
+  )
+}
+
+/** Tiny pill with the next event's countdown, e.g. "Spark Hack · 2d 4h". */
+function NextPill() {
+  const ev = useNextEvent()
+  const start = useMemo(() => (ev ? eventStart(ev.date, ev.time) : null), [ev])
+  const ms = useCountdown(start)
+  const reg = useLocalReg(ev?.id)
+  if (!ev || ms <= 0) return null
+  const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000)
+  const short = ev.title.split(/[:—–-]/)[0].trim().slice(0, 18)
+  return (
+    <Link to={`/events/${ev.slug}`} viewTransition className="pill pill--sm pill--ghost !h-9 !px-3.5 !text-[11.5px] !normal-case !tracking-normal" data-cursor="VIEW" title={ev.title}>
+      <span className="h-1.5 w-1.5 rounded-full bg-spark shadow-[0_0_8px_rgb(26_159_232)]" aria-hidden />
+      <span className="font-[560]">{short}</span>
+      <span className="t-num text-mute-hi">{reg ? 'Registered ✓' : d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`}</span>
+    </Link>
   )
 }

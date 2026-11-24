@@ -9,6 +9,7 @@ import { formatDateShort } from '../lib/time'
 import { CATEGORY_META, categoryKey } from '../lib/site'
 import { notifyDataUpdated } from '../lib/supabase'
 import { toast } from '../lib/toast'
+import { flareSpark } from '../three/sparkState'
 
 const DEPARTMENTS = ['Computer Science & Engineering', 'Information Technology', 'Electronics & Communication', 'Electrical Engineering', 'Mechanical', 'Other']
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year']
@@ -117,6 +118,7 @@ function Sheet({ event }: { event: TSEvent }) {
         setLocalReg(event.id, { status: res.status, at: Date.now(), name: values.name.trim() })
         try { localStorage.setItem('ts_last_student', JSON.stringify(values)) } catch { /* ignore */ }
         notifyDataUpdated()
+        if (res.status === 'Confirmed') flareSpark(1)
         setPhase({ kind: 'done', status: res.status, name: values.name.trim().split(' ')[0] })
         return
       }

@@ -2,7 +2,7 @@
  * Dev-only fixtures, used when running `npm run dev` without Supabase keys so every section,
  * state and flow can be designed and tested. Never used in production builds.
  */
-import type { Announcement, PastEvent, TSEvent } from './api'
+import type { Announcement, PastEvent, TSEvent, TeamMember } from './api'
 
 const day = (offset: number) => {
   const d = new Date()
@@ -65,3 +65,8 @@ export const demoPastEvents: PastEvent[] = [
   { id: 'p4', title: 'Trivia Battle', date: day(-12), participants: 90, category: 'Fun & Social', description: 'Thirty teams, five rounds, one tie-breaker that went to sudden death.', image: '', highlight: 'Record turnout for a social night', published: true, createdAt: now },
   { id: 'p5', title: 'Freshers Mixer', date: day(-8), participants: 120, category: 'Fun & Social', description: 'Games and introductions for first years across every branch.', image: '', highlight: '', published: true, createdAt: now },
 ]
+
+/** Dev only: no faces, just initials — production renders nothing until real members are added. */
+export const demoTeam: TeamMember[] = [
+  ['Club Lead', 'Ananya K'], ['Tech Lead', 'Rohit M'], ['Design Lead', 'Sahana P'], ['Events', 'Kiran B'], ['Outreach', 'Meghana S'], ['Faculty Coordinator', 'Prof. Rao'],
+].map(([role, name], i) => ({ id: `t${i}`, name, role, photo: '', photoFun: '', sortOrder: i, published: true, createdAt: now }))

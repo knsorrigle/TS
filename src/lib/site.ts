@@ -12,9 +12,8 @@ export const SITE = {
 export const CLUB_GITHUB_URL = ''
 
 export const SECTIONS = [
-  { id: 'about', label: 'About', long: 'About' },
-  { id: 'activities', label: 'What we do', long: 'What We Do' },
   { id: 'events', label: 'Events', long: 'Events & Registrations' },
+  { id: 'activities', label: 'About', long: 'What We Do' },
   { id: 'announcements', label: 'Bulletins', long: 'Announcements' },
   { id: 'archive', label: 'Archive', long: 'Event Archive' },
 ] as const

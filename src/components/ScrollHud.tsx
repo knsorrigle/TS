@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const IDS = ['top', 'about', 'activities', 'events', 'announcements', 'archive']
+const IDS = ['top', 'about', 'events', 'activities', 'announcements', 'archive']
 
 /** Section counter in the right gutter:  02 / 06 */
 export function ScrollHud() {

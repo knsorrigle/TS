@@ -35,17 +35,17 @@ export function EventDetail() {
   return (
     <>
       <article ref={root} className="relative bg-void">
-        <header className="relative min-h-[78svh] overflow-hidden">
+        <header data-spark="0.36 0.12 0.75 0.4" className="relative min-h-[78svh] overflow-hidden">
           {e ? (
             <Duotone src={e.image} alt={e.title} category={e.category} eager className="absolute inset-0" />
           ) : <Skeleton className="absolute inset-0" />}
           <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-void via-void/40 to-void/30" />
-          <div className="relative z-10 mx-auto flex min-h-[78svh] max-w-[1440px] flex-col justify-end px-[var(--gutter)] pb-14 pt-[calc(var(--nav-h)+32px)]">
+          <div className="above-spark mx-auto flex min-h-[78svh] max-w-[1440px] flex-col justify-end px-[var(--gutter)] pb-14 pt-[calc(var(--nav-h)+32px)]">
             <Link to="/#events" viewTransition className="t-meta absolute top-[calc(var(--nav-h)+24px)] inline-flex items-center gap-2 transition-colors hover:text-frost"><ArrowLeft size={14} /> All events</Link>
             {e ? (
               <>
                 <p className="t-meta" style={{ color: CATEGORY_META[categoryKey(e.category)].to }}>{CATEGORY_META[categoryKey(e.category)].label}</p>
-                <h1 className="t-h1 mt-4 max-w-[18ch] text-[clamp(44px,7.4vw,128px)] text-frost" style={{ viewTransitionName: `title-${e.slug}` }}>{e.title}</h1>
+                <h1 className="t-h1 mt-4 max-w-[16ch] text-[clamp(52px,8.6vw,150px)]" style={{ viewTransitionName: `title-${e.slug}` }}>{e.title}</h1>
               </>
             ) : ev.status === 'loading' ? (
               <div className="space-y-4"><Skeleton className="h-3 w-40" /><Skeleton className="h-16 w-3/4" /></div>
@@ -60,7 +60,7 @@ export function EventDetail() {
         )}
 
         {e && (
-          <div className="mx-auto grid max-w-[1440px] gap-12 px-[var(--gutter)] pb-[var(--section-pad)] pt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-20">
+          <div data-spark="-0.44 0 0.45 1.2" className="above-spark mx-auto grid max-w-[1440px] gap-12 px-[var(--gutter)] pb-[var(--section-pad)] pt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-20">
             <div>
               <p className="max-w-[40ch] text-[clamp(19px,1.7vw,24px)] leading-[1.45] text-frost/90" data-reveal="lines">{e.description}</p>
               <div className="t-body mt-10 max-w-[64ch] space-y-5 whitespace-pre-line text-[16.5px]" data-reveal="up">{e.fullDescription}</div>

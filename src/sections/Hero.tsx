@@ -2,9 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createHero, type HeroGL } from '../gl/createHero'
 import { gsap, lockScroll, reducedMotion, scrollToTarget } from '../lib/motion'
 import { hasIgnitedThisSession, markIntroDone } from '../lib/intro'
-import { NextEventSpotlight } from '../components/NextEventSpotlight'
+import { TicketStub } from '../components/TicketStub'
 
-const WORD = 'TECHSPARK'
 
 export function Hero() {
   const section = useRef<HTMLElement>(null)
@@ -88,13 +87,13 @@ export function Hero() {
         scrollTrigger: {
           trigger: section.current,
           start: 'top top',
-          end: '+=150%',
+          end: '+=110%',
           pin: true,
           scrub: true,
           onUpdate: (st) => gl.current?.setScroll(st.progress),
         },
       })
-      tl.to('[data-hero-text]', { yPercent: -22, autoAlpha: 0, duration: 0.3 }, 0)
+      tl.to('[data-hero-text]', { yPercent: -60, autoAlpha: 0, duration: 0.35 }, 0)
         .to('[data-hero-chrome]', { autoAlpha: 0, duration: 0.15 }, 0)
         .set({}, {}, 1) // pad the timeline to the full pin length
     }, section)
@@ -106,6 +105,7 @@ export function Hero() {
       ref={section}
       id="top"
       aria-label="TECHSPARK — Inspire. Innovate. Integrate."
+      data-spark="0 0 1.25 0"
       className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-void"
     >
       <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" />
@@ -115,53 +115,44 @@ export function Hero() {
         className={`pointer-events-none absolute inset-0 z-10 bg-void transition-opacity duration-300 ${covered ? 'opacity-100' : 'opacity-0'}`}
       />
 
-      <div ref={content} className="pointer-events-none absolute inset-0 z-20 px-[var(--gutter)]">
-        {/* Title card: right-aligned on wide screens, below the vertical seam on phones */}
-        <div
-          data-hero-text
-          className="absolute inset-x-[var(--gutter)] bottom-[19svh] flex flex-col items-start text-left md:bottom-auto md:left-auto md:top-[56%] md:items-end md:text-right"
-        >
-          <h1 className="leading-none text-frost">
-            <span className="sr-only">TECHSPARK</span>
-            <span
-              aria-hidden
-              className="flex overflow-hidden pb-[0.02em] text-[clamp(76px,15.5vw,244px)] font-[280] uppercase leading-[0.8] tracking-[-0.012em] [font-stretch:75%]"
-            >
-              {[...WORD].map((c, i) => (
-                <span key={i} data-letter className="inline-block will-change-transform">{c}</span>
-              ))}
-            </span>
-          </h1>
-          <p className="mt-4 overflow-hidden md:mt-5">
-            <span data-line className="block text-[12px] font-[600] uppercase tracking-[0.16em] text-frost/90 md:text-[13px]">
-              Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span>
-            </span>
-          </p>
+      <div ref={content} className="pointer-events-none absolute inset-0 px-[var(--gutter)]">
+        {/* Tech / Spark — the seam of light runs between the two lines; the crystal sits in it,
+            in front of "Spark" and behind "Tech" */}
+        <h1 data-hero-text className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white">
+          <span className="sr-only">TECHSPARK</span>
+          <span aria-hidden className="t-serif above-spark block overflow-hidden pb-[0.04em] text-[clamp(112px,23vw,400px)] leading-[0.78]">
+            {[...'Tech'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
+          </span>
+          <span aria-hidden className="t-serif relative z-20 mt-[clamp(10px,2.2vw,34px)] block overflow-hidden pb-[0.06em] text-[clamp(112px,23vw,400px)] leading-[0.78]">
+            {[...'Spark'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
+          </span>
+        </h1>
+
+        {/* bottom-left: the ticket stub */}
+        <div data-hero-chrome className="pointer-events-auto absolute bottom-6 left-[var(--gutter)] z-50">
+          <div className="overflow-hidden"><div data-line><TicketStub /></div></div>
         </div>
 
-        {/* Bottom-left meta */}
-        <div data-hero-chrome className="absolute bottom-7 left-[var(--gutter)] hidden md:block">
-          <p className="overflow-hidden"><span data-line className="t-meta block">Campus chapter <span className="sep" /> Est. 2026</span></p>
-          <p className="mt-1.5 overflow-hidden"><span data-line className="t-meta block">Navkis College of Engineering, Hassan</span></p>
+        {/* bottom-right: tagline */}
+        <div data-hero-chrome className="above-spark absolute bottom-6 right-[var(--gutter)] hidden max-w-[300px] text-right md:block">
+          <p className="overflow-hidden"><span data-line className="block text-[12.5px] font-[650] uppercase tracking-[0.12em] text-white">
+            Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span>
+          </span></p>
+          <p className="mt-2 overflow-hidden"><span data-line className="block text-[14px] leading-snug text-mute-hi">A student-led college club hosting technical, non-technical, and fun events.</span></p>
         </div>
 
-        {/* Bottom-centre scroll cue */}
-        <button
-          type="button"
-          data-hero-chrome
-          data-cursor="ENTER"
-          onClick={() => scrollToTarget('intro')}
-          className="pointer-events-auto absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 p-2"
-        >
-          <span className="overflow-hidden"><span data-line className="t-meta block">Scroll to enter</span></span>
-          <span className="relative block h-12 w-px overflow-hidden bg-frost/15" aria-hidden>
-            <span className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-spark to-frost [animation:bead_2.4s_var(--ease-quart)_infinite]" />
+        {/* mobile tagline */}
+        <p data-hero-chrome className="absolute inset-x-0 top-[calc(var(--nav-h)+20px)] overflow-hidden text-center md:hidden">
+          <span data-line className="block text-[11.5px] font-[650] uppercase tracking-[0.12em] text-white">Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span></span>
+        </p>
+
+        {/* scroll cue */}
+        <button type="button" data-hero-chrome data-cursor="ENTER" onClick={() => scrollToTarget('intro')} aria-label="Scroll to content"
+          className="pointer-events-auto absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 p-2 md:flex">
+          <span className="relative block h-10 w-px overflow-hidden bg-white/15" aria-hidden>
+            <span className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-spark to-white [animation:bead_2.4s_var(--ease-quart)_infinite]" />
           </span>
         </button>
-
-        <div data-hero-chrome className="pointer-events-auto">
-          <NextEventSpotlight />
-        </div>
       </div>
     </section>
   )

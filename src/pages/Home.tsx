@@ -1,10 +1,11 @@
 import { Hero } from '../sections/Hero'
 import { Intro } from '../sections/Intro'
-import { About } from '../sections/About'
-import { Categories } from '../sections/Categories'
+import { Statement } from '../sections/Statement'
 import { Events } from '../sections/Events'
+import { WhatWeDo } from '../sections/WhatWeDo'
 import { Bulletins } from '../sections/Bulletins'
 import { Archive } from '../sections/Archive'
+import { Team } from '../sections/Team'
 import { ClosingCta } from '../sections/ClosingCta'
 import { Footer } from '../sections/Footer'
 import { ScrollHud } from '../components/ScrollHud'
@@ -15,13 +16,14 @@ export function Home() {
     <>
       <Hero />
       <Intro />
-      <About />
-      <Categories />
+      <Statement />
       <Events />
+      <WhatWeDo />
       <Bulletins />
       <Archive />
+      <Team />
       <ClosingCta />
-      <Footer />
+      <Footer loop />
       <ScrollHud />
       <MobileRegisterBar />
     </>
