@@ -75,7 +75,7 @@ export function Cursor() {
         className="pointer-events-none fixed left-0 top-0 z-[200] grid h-[76px] w-[76px] place-items-center rounded-full border border-frost/40 backdrop-blur-[2px]"
         style={{ background: 'radial-gradient(circle, rgb(26 159 232 / 0.22), rgb(26 159 232 / 0.04) 60%, transparent 72%)' }}
       >
-        <span className="font-mono text-[9.5px] tracking-[0.3em] text-frost">{label}</span>
+        <span className="text-[10px] font-[650] tracking-[0.08em] text-frost">{label}</span>
       </div>
       <div
         ref={dot}

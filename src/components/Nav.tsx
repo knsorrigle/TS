@@ -125,7 +125,7 @@ export function Nav() {
     <>
       <a
         href="#main"
-        className="sr-only-focusable fixed left-4 top-4 z-[120] rounded-full bg-frost px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-void"
+        className="sr-only-focusable fixed left-4 top-4 z-[120] rounded-full bg-frost px-4 py-2 text-[12px] font-[600] uppercase tracking-[0.06em] text-void"
       >
         Skip to content
       </a>
@@ -155,7 +155,7 @@ export function Nav() {
               height={40}
               className="h-9 w-9 transition-[filter] duration-700 group-hover:drop-shadow-[0_0_10px_rgb(26_159_232/0.7)] md:h-10 md:w-10"
             />
-            <span className="font-display text-[11px] font-normal tracking-[0.42em] text-frost md:text-[12px]">TECHSPARK</span>
+            <span className="text-[13px] font-[680] uppercase tracking-[0.05em] text-frost [font-stretch:115%]">Techspark</span>
           </Link>
 
           <div className="hidden items-center gap-10 lg:flex">
@@ -168,12 +168,12 @@ export function Nav() {
                     onClick={go(s.id)}
                     aria-current={active === s.id ? 'true' : undefined}
                     className={[
-                      'group block py-3 font-mono text-[10.5px] tracking-[0.26em] transition-colors duration-500',
+                      'group block py-3 text-[13.5px] font-[480] tracking-[-0.005em] transition-colors duration-500',
                       active === s.id ? 'text-frost' : 'text-mute-hi hover:text-frost',
                     ].join(' ')}
                   >
                     <span className="sr-only">{s.label}</span>
-                    <SplitLabel text={s.nav} />
+                    <SplitLabel text={s.label} />
                   </a>
                 </li>
               ))}
@@ -184,24 +184,24 @@ export function Nav() {
               />
             </ul>
             <Magnetic>
-              <a href="/#events" onClick={go('events')} className="pill pill--sm" data-cursor="RSVP">
+              <a href="/#events" onClick={go('events')} className="pill pill--sm" data-cursor="REGISTER">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inset-0 animate-ping rounded-full bg-spark opacity-70" />
                   <span className="relative h-1.5 w-1.5 rounded-full bg-spark" />
                 </span>
-                RSVP OPEN
+                Register
               </a>
             </Magnetic>
           </div>
 
           <button
             type="button"
-            className="group relative flex h-11 items-center gap-3 pl-4 font-mono text-[10.5px] tracking-[0.3em] text-frost lg:hidden"
+            className="group relative flex h-11 items-center gap-3 pl-4 text-[12px] font-[600] uppercase tracking-[0.08em] text-frost lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             onClick={() => setOpen((o) => !o)}
           >
-            <span>{open ? 'CLOSE' : 'MENU'}</span>
+            <span>{open ? 'Close' : 'Menu'}</span>
             <span className="relative block h-3 w-5" aria-hidden>
               <span className={`absolute left-0 h-px w-5 bg-frost transition-transform duration-500 ease-[var(--ease-expo)] ${open ? 'top-1.5 rotate-45' : 'top-0.5'}`} />
               <span className={`absolute left-0 h-px bg-frost transition-all duration-500 ease-[var(--ease-expo)] ${open ? 'top-1.5 w-5 -rotate-45' : 'top-2.5 w-3'}`} />
@@ -230,15 +230,15 @@ export function Nav() {
                 data-stagger
                 className="flex items-baseline gap-5 py-4 active:opacity-70"
               >
-                <span className="font-mono text-[10.5px] tracking-[0.2em] text-spark">{String(i + 1).padStart(2, '0')}</span>
-                <span className="font-display text-[clamp(26px,8vw,44px)] font-light uppercase leading-none tracking-[0.04em] text-frost">{s.label}</span>
+                <span className="t-num text-[12px] font-[600] text-spark">{String(i + 1).padStart(2, '0')}</span>
+                <span className="t-h1 text-[clamp(34px,10vw,52px)] text-frost">{s.label}</span>
               </a>
             </li>
           ))}
         </ol>
         <div className="relative flex items-end justify-between" data-stagger>
-          <a href="/#events" onClick={go('events')} className="pill pill--spark">RSVP OPEN</a>
-          <span className="t-meta text-right">NAVKIS COLLEGE<br />OF ENGINEERING</span>
+          <a href="/#events" onClick={go('events')} className="pill pill--spark">Register for events</a>
+          <span className="t-meta text-right">Navkis College<br />of Engineering, Hassan</span>
         </div>
       </div>
     </>

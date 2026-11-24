@@ -105,7 +105,7 @@ export function Hero() {
     <section
       ref={section}
       id="top"
-      aria-label="TECHSPARK — Learn. Build. Innovate."
+      aria-label="TECHSPARK — Inspire. Innovate. Integrate."
       className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-void"
     >
       <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" />
@@ -119,27 +119,30 @@ export function Hero() {
         {/* Title card: right-aligned on wide screens, below the vertical seam on phones */}
         <div
           data-hero-text
-          className="absolute inset-x-[var(--gutter)] bottom-[22svh] flex flex-col items-start text-left sm:bottom-[24svh] md:bottom-auto md:left-auto md:top-[58%] md:items-end md:text-right"
+          className="absolute inset-x-[var(--gutter)] bottom-[19svh] flex flex-col items-start text-left md:bottom-auto md:left-auto md:top-[56%] md:items-end md:text-right"
         >
-          <h1 className="font-display font-extralight leading-none text-frost">
+          <h1 className="leading-none text-frost">
             <span className="sr-only">TECHSPARK</span>
-            <span aria-hidden className="flex overflow-hidden pb-[0.08em] text-[clamp(34px,6.6vw,104px)] tracking-[0.2em] md:-mr-[0.2em]">
+            <span
+              aria-hidden
+              className="flex overflow-hidden pb-[0.02em] text-[clamp(76px,15.5vw,244px)] font-[280] uppercase leading-[0.8] tracking-[-0.012em] [font-stretch:75%]"
+            >
               {[...WORD].map((c, i) => (
                 <span key={i} data-letter className="inline-block will-change-transform">{c}</span>
               ))}
             </span>
           </h1>
-          <p className="mt-5 overflow-hidden md:mt-6">
-            <span data-line className="block font-mono text-[10.5px] tracking-[0.5em] text-frost/90 md:text-[11.5px] md:-mr-[0.5em]">
-              LEARN. BUILD. INNOVATE.
+          <p className="mt-4 overflow-hidden md:mt-5">
+            <span data-line className="block text-[12px] font-[600] uppercase tracking-[0.16em] text-frost/90 md:text-[13px]">
+              Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span>
             </span>
           </p>
         </div>
 
         {/* Bottom-left meta */}
         <div data-hero-chrome className="absolute bottom-7 left-[var(--gutter)] hidden md:block">
-          <p className="overflow-hidden"><span data-line className="t-meta block">CAMPUS CHAPTER <span className="sep" /> EST. 2026</span></p>
-          <p className="mt-1.5 overflow-hidden"><span data-line className="t-meta block">NAVKIS COLLEGE OF ENGINEERING</span></p>
+          <p className="overflow-hidden"><span data-line className="t-meta block">Campus chapter <span className="sep" /> Est. 2026</span></p>
+          <p className="mt-1.5 overflow-hidden"><span data-line className="t-meta block">Navkis College of Engineering, Hassan</span></p>
         </div>
 
         {/* Bottom-centre scroll cue */}
@@ -150,7 +153,7 @@ export function Hero() {
           onClick={() => scrollToTarget('intro')}
           className="pointer-events-auto absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 p-2"
         >
-          <span className="overflow-hidden"><span data-line className="block font-mono text-[10px] tracking-[0.42em] text-mute-hi">SCROLL TO ENTER</span></span>
+          <span className="overflow-hidden"><span data-line className="t-meta block">Scroll to enter</span></span>
           <span className="relative block h-12 w-px overflow-hidden bg-frost/15" aria-hidden>
             <span className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-spark to-frost [animation:bead_2.4s_var(--ease-quart)_infinite]" />
           </span>
@@ -166,16 +169,6 @@ export function Hero() {
 
 /** No-WebGL fallback: a static grainy approximation of the aperture. */
 function StaticAperture() {
-  return (
-    <div aria-hidden className="absolute inset-0">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(60% 9% at 46% 46%, rgb(26 159 232) 0%, rgb(0 87 255 / 0.85) 45%, transparent 100%), radial-gradient(90% 45% at 46% 46%, rgb(0 87 255 / 0.28), transparent 70%), #000',
-        }}
-      />
-      <div className="absolute left-[46%] top-[46%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-frost shadow-[0_0_24px_6px_rgb(26_159_232/0.9)]" />
-    </div>
-  )
+  // a still frame exported from the shader itself, so no-WebGL visitors see the same light
+  return <img aria-hidden src="/hero-still.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
 }
