@@ -72,7 +72,7 @@ void main() {
   float collapse = smoothstep(0.62, 0.95, uScroll);
 
   // ── the spark's anchor; drifts toward the pointer with heavy weight
-  vec2 s = mix(vec2(-0.08, 0.035), vec2(0.0, 0.17), uOrient);
+  vec2 s = mix(vec2(0.0, 0.0), vec2(0.0, 0.0), uOrient); // the crystal sits exactly here
   s += uPointer * vec2(0.035, 0.022) * (1.0 - open);
 
   // ── local frame: tilt follows the pointer a few degrees; portrait turns the seam vertical

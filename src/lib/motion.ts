@@ -40,6 +40,19 @@ export function stopSmoothScroll() {
 
 export const getLenis = () => lenis
 
+/** Child effects run before the layout starts Lenis, so wait for it. Returns a canceller. */
+export function whenLenis(cb: (l: Lenis) => void | (() => void)) {
+  let cleanup: void | (() => void)
+  let alive = true
+  const tryIt = () => {
+    if (!alive) return
+    if (lenis) cleanup = cb(lenis)
+    else if (!reducedMotion()) setTimeout(tryIt, 50)
+  }
+  tryIt()
+  return () => { alive = false; cleanup?.() }
+}
+
 /** Scroll to an element/id, honouring Lenis when active and the fixed nav height. */
 export function scrollToTarget(target: string | HTMLElement, opts: { offset?: number; immediate?: boolean } = {}) {
   const el = typeof target === 'string' ? document.getElementById(target.replace(/^#/, '')) : target

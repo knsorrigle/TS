@@ -128,3 +128,24 @@ Vite + React + TS + Tailwind v4 · GSAP/ScrollTrigger · Lenis · **ogl** (small
 1. **Location: Navkis College of Engineering, Hassan.** The brief's footer line says "Bangalore". That is wrong; Hassan is used everywhere (footer, SEO, meta).
 2. **Supabase:** built against a fresh project from `supabase/schema.sql`. Keys go in `.env.local` (template in `.env.example`).
 3. **Event images:** uploaded later via the admin panel. Until then, image-less cards fall back to a category living-gradient frame instead of a broken image.
+
+---
+
+# v2: "Best of both" (approved 2026-11-25)
+
+The revised brief (redis.agency structure plus a 3D crystal mascot) merged with the v1 light world.
+
+| Taken from the revised brief | Kept from v1 |
+|---|---|
+| Huge editorial serif display (**Instrument Serif**), centred two-line hero `Tech / Spark` | The **aperture** shader as the hero's light: the crystal sits exactly at the spark point in the seam |
+| **The Spark**: a faceted glass octahedron (it echoes the logo's diamond) with a pulsing blue core, which travels the whole page | Ignition preloader: point → seam → aperture, then the crystal **assembles from shards** and ignites |
+| Floating crystal shards and soft light orbs at 3 depths with parallax | Grain, living gradients (ref-04), the Daybreak CTA (ref-03), the duotone photo treatment |
+| Pill nav, the ticket-stub micro-detail with barcode, keyword marquee | Lit words (`Technology. Creativity. Community.`), now set in the serif |
+| Events as a single centred column of big rounded cards | Seats in plain words, the <48h countdown, the register sheet and every state |
+| What we do as hairline rows (serif name / em-dash list) | Each category row carries a WebGL light pillar that blooms on hover |
+| Team row with hover photo swap (new `techspark_team` table) | Supabase, RLS, the admin and the OG middleware, all unchanged |
+| Giant serif email footer; the page **loops** back into the hero | Mona Sans for all UI text (no mono, no wide tracking) |
+
+Copy decisions: **Hassan** (not Bangalore) and **Inspire. Innovate. Integrate.** (the user's chat instruction overrides the brief file).
+
+**Crystal path**: each section declares a pose with `data-spark="x y scale rotation"` (x and y as viewport fractions). The rig interpolates between the poses of the sections around the viewport centre, then adds pointer tilt, scroll-velocity spin, a lean toward a hovered event card and a flare on successful registration. It passes behind elements marked `.above-spark` and in front of everything else. One fixed transparent canvas (z 30) is lazy-loaded after first paint. On mobile it uses lighter glass (physical transmission, fewer shards). With reduced motion it's a static crystal with no loop. Without WebGL it falls back to a PNG.
