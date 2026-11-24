@@ -8,7 +8,7 @@ import { CATEGORY_META, categoryKey, type CategoryKey } from '../lib/site'
 import { eventStart, formatDateShort } from '../lib/time'
 import { isUpcoming, seatState } from '../lib/status'
 import { leanSpark } from '../three/sparkState'
-import { RegisterButton, Soon } from '../components/EventCard'
+import { RegisterLink, Soon } from '../components/EventCard'
 import { Duotone } from '../components/Duotone'
 import { Skeleton } from '../components/Skeleton'
 
@@ -70,10 +70,8 @@ export function Events() {
           <div role="radiogroup" aria-label="Filter by category" className="no-scrollbar -mx-[var(--gutter)] flex gap-1.5 overflow-x-auto px-[var(--gutter)] lg:mx-0 lg:px-0">
             {FILTERS.map((f) => {
               const on = cat === f.key
-              const meta = f.key === 'all' ? null : CATEGORY_META[f.key]
               return (
                 <button key={f.key} type="button" role="radio" aria-checked={on} onClick={() => set('cat', f.key)} className={`nav-pill shrink-0 !h-10 !px-4 ${on ? 'is-active' : ''}`}>
-                  {meta && <span aria-hidden className="mr-2 inline-block h-1.5 w-1.5 rounded-full" style={{ background: meta.to, boxShadow: `0 0 8px ${meta.to}` }} />}
                   {f.label}
                 </button>
               )
@@ -126,7 +124,6 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
       <Link
         to={`/events/${e.slug}`}
         viewTransition
-        data-cursor="VIEW"
         onPointerEnter={(ev) => lean(ev.currentTarget)}
         onPointerLeave={() => lean(null)}
         onFocus={(ev) => lean(ev.currentTarget)}
@@ -134,12 +131,11 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
         className="relative block aspect-[16/10] overflow-hidden rounded-[clamp(20px,2.4vw,36px)] outline-offset-4 sm:aspect-[16/9]"
         aria-label={`${e.title} — details`}
       >
-        <Duotone src={e.image} alt={e.title} category={e.category} eager={first} className="absolute inset-0 transition-transform duration-[1400ms] ease-[var(--ease-expo)] group-hover:scale-[1.03]" />
+        <Duotone src={e.image} alt={e.title} category={e.category} eager={first} className="absolute inset-0 transition-transform duration-[1400ms] ease-[var(--ease-expo)] group-hover:scale-[1.03]" blank={<EventBlank e={e} />} />
         <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2 sm:left-6 sm:top-6">
           {first && e.featured && <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-[650] uppercase tracking-[0.06em] text-black">Featured</span>}
           <Soon e={e} />
         </div>
-        <span aria-hidden className="absolute inset-x-0 bottom-0 z-10 h-px opacity-80" style={{ background: `linear-gradient(90deg, transparent, ${meta.to}, transparent)` }} />
       </Link>
       <div className="above-spark mt-7 text-center">
         <h3 className="t-h1 mx-auto max-w-[18ch] text-[clamp(34px,4.2vw,64px)]" style={{ viewTransitionName: `title-${e.slug}` }}>
@@ -150,12 +146,24 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
           <span className="mx-2 text-white/25">·</span>
           <span className={`whitespace-nowrap ${s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}`}>{s.label}</span>
         </p>
-        <div className="mt-6 flex justify-center gap-2">
-          <RegisterButton e={e} />
-          <Link to={`/events/${e.slug}`} viewTransition className="pill pill--sm">Details</Link>
-        </div>
+        <div className="mt-4 flex justify-center"><RegisterLink e={e} /></div>
       </div>
     </li>
+  )
+}
+
+/** No photo yet: an editorial frame — the date set large in the serif, nothing pretending to be an image. */
+function EventBlank({ e }: { e: TSEvent }) {
+  const [d, m] = formatDateShort(e.date).split(' ')
+  const meta = CATEGORY_META[categoryKey(e.category)]
+  return (
+    <div className="absolute inset-0 flex flex-col justify-between p-[clamp(20px,3vw,40px)]">
+      <span className="text-[14px] text-mute-hi">{meta.label}</span>
+      <div className="flex items-end justify-between gap-6">
+        <span className="t-serif text-[clamp(96px,16vw,240px)] leading-[0.8] text-white">{d}<span className="ml-3 text-[0.32em] text-mute-hi">{m?.charAt(0)}{m?.slice(1).toLowerCase()}</span></span>
+        <span className="mb-2 hidden max-w-[22ch] text-right text-[14px] leading-snug text-mute-hi sm:block">{[e.time, e.location].filter(Boolean).join(' · ')}</span>
+      </div>
+    </div>
   )
 }
 

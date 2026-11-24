@@ -117,16 +117,16 @@ function Fragments({ tier, reduced }: { tier: 'high' | 'mid' | 'low'; reduced: b
   const orbTex = useMemo(() => glowTexture('#bfe4ff', '#1A9FE8', 128), [])
   const items = useMemo(() => {
     const rnd = mulberry(7)
-    const n = tier === 'high' ? 16 : tier === 'mid' ? 9 : 6
+    const n = tier === 'high' ? 12 : tier === 'mid' ? 7 : 5
     return Array.from({ length: n }, (_, i) => {
       const layer = i % 3 // 0 back, 1 mid, 2 front
       return {
         layer,
-        orb: layer === 2 || (layer === 0 && rnd() > 0.55),
+        orb: false, // soft bokeh orbs read as stains on black; shards only
         x: (rnd() - 0.5) * 1.15,
         y: (rnd() - 0.5) * 2,
-        z: layer === 0 ? -6 - rnd() * 4 : layer === 1 ? -1.5 - rnd() * 2 : 2.5 + rnd() * 2,
-        s: layer === 0 ? 0.05 + rnd() * 0.06 : layer === 1 ? 0.09 + rnd() * 0.08 : 0.55 + rnd() * 0.5,
+        z: layer === 0 ? -6 - rnd() * 4 : layer === 1 ? -1.5 - rnd() * 2 : 1 + rnd() * 1.5,
+        s: layer === 0 ? 0.05 + rnd() * 0.05 : layer === 1 ? 0.08 + rnd() * 0.07 : 0.12 + rnd() * 0.08,
         speed: layer === 0 ? 0.25 : layer === 1 ? 0.6 : 1.35,
         rot: rnd() * Math.PI * 2, spin: (rnd() - 0.5) * 0.6, phase: rnd() * 10,
       }

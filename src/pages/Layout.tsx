@@ -1,9 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Nav } from '../components/Nav'
-import { Cursor } from '../components/Cursor'
 import { Grain } from '../components/Grain'
-import { ScrollProgress } from '../components/ScrollProgress'
 import { Toaster } from '../components/Toaster'
 import { RegisterModal } from '../components/RegisterModal'
 import { SparkLayer } from '../components/SparkLayer'
@@ -35,7 +33,6 @@ export function Layout() {
   return (
     <>
       <Nav />
-      <ScrollProgress />
       <main id="main" tabIndex={-1} className="outline-none">
         <Outlet />
       </main>
@@ -43,7 +40,6 @@ export function Layout() {
       <RegisterModal />
       <Toaster />
       <Grain />
-      <Cursor />
     </>
   )
 }

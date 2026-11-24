@@ -3,35 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { SECTIONS } from '../lib/site'
 import { getLenis, gsap, lockScroll, reducedMotion, scrollToTarget } from '../lib/motion'
 import { isIntroDone, onIntroDone } from '../lib/intro'
-import { Magnetic } from './Magnetic'
-import { useCountdown, useNextEvent } from '../lib/useEvents'
-import { eventStart } from '../lib/time'
-import { openRegister } from '../lib/registerStore'
-import { useLocalReg } from '../lib/useLocalReg'
-import { useMemo } from 'react'
 
-/** Letters stacked twice; on hover the column rolls up one line, staggered per letter. */
-function SplitLabel({ text }: { text: string }) {
-  return (
-    <span className="relative inline-flex h-[1.2em] overflow-hidden leading-[1.2em]" aria-hidden>
-      {[...text].map((ch, i) => (
-        <span
-          key={i}
-          className="inline-flex flex-col transition-transform duration-[650ms] ease-[var(--ease-expo)] group-hover:-translate-y-1/2 group-focus-visible:-translate-y-1/2"
-          style={{ transitionDelay: `${i * 18}ms` }}
-        >
-          <span>{ch === ' ' ? ' ' : ch}</span>
-          <span className="text-spark">{ch === ' ' ? ' ' : ch}</span>
-        </span>
-      ))}
-    </span>
-  )
-}
 
 export function Nav() {
   const nav = useRef<HTMLElement>(null)
   const list = useRef<HTMLUListElement>(null)
-  const indicator = useRef<HTMLSpanElement>(null)
   const overlay = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
@@ -85,16 +61,6 @@ export function Nav() {
     return () => { io.disconnect(); window.removeEventListener('scroll', top) }
   }, [onHome, location.key])
 
-  // slide the indicator under the active link
-  useLayoutEffect(() => {
-    const ul = list.current, ind = indicator.current
-    if (!ul || !ind) return
-    const a = active ? ul.querySelector<HTMLElement>(`[data-id="${active}"]`) : null
-    if (!a) { gsap.to(ind, { autoAlpha: 0, duration: 0.4 }); return }
-    const ur = ul.getBoundingClientRect(), ar = a.getBoundingClientRect()
-    gsap.to(ind, { x: ar.left - ur.left + ar.width / 2 - 2, autoAlpha: 1, duration: 0.9, ease: 'expo.out' })
-  }, [active])
-
   // mobile overlay
   useEffect(() => {
     const el = overlay.current
@@ -122,11 +88,6 @@ export function Nav() {
     } else {
       navigate(`/#${id}`, { viewTransition: true })
     }
-  }
-
-  const next = useNextEvent()
-  const registerClick = (e: React.MouseEvent) => {
-    if (next) { e.preventDefault(); setOpen(false); openRegister(next) } else go('events')(e)
   }
 
   const solid = scrolled || open || !onHome
@@ -178,20 +139,13 @@ export function Nav() {
                   aria-current={active === sec.id ? 'true' : undefined}
                   className={`group nav-pill ${active === sec.id ? 'is-active' : ''}`}
                 >
-                  <span className="sr-only">{sec.label}</span>
-                  <SplitLabel text={sec.label} />
+                  {sec.label}
                 </a>
               </li>
             ))}
-            <span ref={indicator} aria-hidden className="pointer-events-none absolute -bottom-2 left-0 h-1 w-1 rounded-full bg-spark opacity-0 shadow-[0_0_10px_2px_rgb(26_159_232/0.8)]" />
           </ul>
 
-          <div className="hidden items-center gap-1.5 lg:flex">
-            <NextPill />
-            <Magnetic>
-              <a href="/#events" onClick={registerClick} className="pill pill--solid pill--sm !h-9" data-cursor="REGISTER">Register</a>
-            </Magnetic>
-          </div>
+          <a href="#contact" onClick={go('contact')} className="nav-pill hidden lg:inline-flex">Get in touch</a>
 
           <button
             type="button"
@@ -232,7 +186,7 @@ export function Nav() {
           ))}
         </ol>
         <div className="relative flex items-end justify-between" data-stagger>
-          <a href="/#events" onClick={registerClick} className="pill pill--solid">Register</a>
+          <a href="#contact" onClick={go('contact')} className="pill">Get in touch</a>
           <span className="t-meta text-right">Navkis College<br />of Engineering, Hassan</span>
         </div>
       </div>
@@ -240,20 +194,3 @@ export function Nav() {
   )
 }
 
-/** Tiny pill with the next event's countdown, e.g. "Spark Hack · 2d 4h". */
-function NextPill() {
-  const ev = useNextEvent()
-  const start = useMemo(() => (ev ? eventStart(ev.date, ev.time) : null), [ev])
-  const ms = useCountdown(start)
-  const reg = useLocalReg(ev?.id)
-  if (!ev || ms <= 0) return null
-  const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000)
-  const short = ev.title.split(/[:—–-]/)[0].trim().slice(0, 18)
-  return (
-    <Link to={`/events/${ev.slug}`} viewTransition className="pill pill--sm pill--ghost !h-9 !px-3.5 !text-[11.5px] !normal-case !tracking-normal" data-cursor="VIEW" title={ev.title}>
-      <span className="h-1.5 w-1.5 rounded-full bg-spark shadow-[0_0_8px_rgb(26_159_232)]" aria-hidden />
-      <span className="font-[560]">{short}</span>
-      <span className="t-num text-mute-hi">{reg ? 'Registered ✓' : d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`}</span>
-    </Link>
-  )
-}

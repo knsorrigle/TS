@@ -11,7 +11,6 @@ import { useCountdown } from '../lib/useEvents'
 
 export function SeatLine({ e }: { e: TSEvent }) {
   const s = seatState(e)
-  const meta = CATEGORY_META[categoryKey(e.category)]
   const ratio = fillRatio(e)
   const tone = s.tone === 'closed' || s.tone === 'full' ? 'text-mute-hi' : s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : 'text-frost'
   return (
@@ -22,7 +21,7 @@ export function SeatLine({ e }: { e: TSEvent }) {
       </div>
       {e.capacity > 0 && (
         <div className="mt-2 h-[2px] bg-line" role="meter" aria-label="Seats filled" aria-valuemin={0} aria-valuemax={e.capacity} aria-valuenow={Math.min(e.registeredCount, e.capacity)}>
-          <div className="h-full origin-left transition-transform duration-[1400ms] ease-[var(--ease-expo)]" style={{ transform: `scaleX(${ratio})`, background: `linear-gradient(90deg, ${meta.from}, ${meta.to})`, boxShadow: `0 0 10px rgb(${meta.glow} / 0.7)` }} />
+          <div className="h-full origin-left bg-white transition-transform duration-[1400ms] ease-[var(--ease-expo)]" style={{ transform: `scaleX(${ratio})` }} />
         </div>
       )}
     </div>
@@ -34,9 +33,8 @@ export function Soon({ e }: { e: TSEvent }) {
   const ms = useCountdown(start)
   if (!start || ms <= 0 || ms > 48 * 3600_000) return null
   return (
-    <span className="t-num inline-flex items-center gap-1.5 rounded-full bg-frost px-2.5 py-1 text-[11px] font-[650] text-void">
-      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cobalt" />
-      {formatCountdown(ms)}
+    <span className="t-num inline-flex items-center rounded-full bg-white px-3 py-1 text-[12.5px] font-[550] text-black">
+      Starts in {formatCountdown(ms).toLowerCase()}
     </span>
   )
 }
@@ -57,7 +55,6 @@ export function RegisterButton({ e, size = 'sm', full }: { e: TSEvent; size?: 's
       disabled={!s.canRegister}
       onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); openRegister(e) }}
       className={`pill ${s.tone === 'waitlist' ? '' : 'pill--spark'} ${size === 'sm' ? 'pill--sm' : ''} ${full ? 'w-full' : ''}`}
-      data-cursor="REGISTER"
     >
       {!s.canRegister ? s.label : s.tone === 'waitlist' ? 'Join waitlist' : 'Register'}
     </button>
@@ -69,7 +66,7 @@ export function EventCard({ e, index }: { e: TSEvent; index: number }) {
   return (
     <article className="group relative flex flex-col bg-ink transition-colors duration-700 hover:bg-ink-2" data-reveal="up" data-delay={String((index % 3) * 0.08)}>
       <span aria-hidden className="absolute inset-x-0 top-0 z-10 h-px" style={{ background: `linear-gradient(90deg, ${meta.from}, ${meta.to}, transparent)` }} />
-      <Link to={`/events/${e.slug}`} viewTransition className="flex flex-1 flex-col outline-offset-[-2px]" data-cursor="VIEW">
+      <Link to={`/events/${e.slug}`} viewTransition className="flex flex-1 flex-col outline-offset-[-2px]">
         <div className="relative aspect-[16/10]">
           <Duotone src={e.image} alt={e.title} category={e.category} className="absolute inset-0" label={e.image ? undefined : meta.short} />
           <div className="absolute left-3 top-3 z-10 flex flex-wrap gap-2"><Soon e={e} /></div>
@@ -93,5 +90,18 @@ export function EventCard({ e, index }: { e: TSEvent; index: number }) {
       </Link>
       <div className="px-5 pb-5 sm:px-6 sm:pb-6"><RegisterButton e={e} full /></div>
     </article>
+  )
+}
+
+/** The quiet version for lists: a text link, not a button shouting at you. */
+export function RegisterLink({ e }: { e: TSEvent }) {
+  const reg = useLocalReg(e.id)
+  const s = seatState(e)
+  if (reg) return <span className="text-[14.5px] text-mute-hi">{reg.status === 'Waitlisted' ? 'You’re on the waitlist' : 'You’re registered'}</span>
+  if (!s.canRegister) return null
+  return (
+    <button type="button" onClick={(ev) => { ev.preventDefault(); openRegister(e) }} className="link-u text-[14.5px] font-[500]">
+      {s.tone === 'waitlist' ? 'Join the waitlist' : 'Register'} <span aria-hidden>→</span>
+    </button>
   )
 }

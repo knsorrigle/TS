@@ -147,7 +147,7 @@ export function Hero() {
         </p>
 
         {/* scroll cue */}
-        <button type="button" data-hero-chrome data-cursor="ENTER" onClick={() => scrollToTarget('intro')} aria-label="Scroll to content"
+        <button type="button" data-hero-chrome onClick={() => scrollToTarget('intro')} aria-label="Scroll to content"
           className="pointer-events-auto absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 p-2 md:flex">
           <span className="relative block h-10 w-px overflow-hidden bg-white/15" aria-hidden>
             <span className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent via-spark to-white [animation:bead_2.4s_var(--ease-quart)_infinite]" />

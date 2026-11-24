@@ -26,7 +26,7 @@ function Member({ m }: { m: TeamMember }) {
   const initials = m.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
   return (
     <li className="group above-spark flex w-[clamp(120px,12vw,168px)] shrink-0 snap-start flex-col items-center" data-reveal="up" tabIndex={0}>
-      <div className="relative aspect-square w-full overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-cobalt/50 via-ink to-spark/40 transition-[border-color,box-shadow] duration-700 group-hover:border-white/60 group-hover:shadow-[0_0_50px_-8px_rgb(26_159_232/0.8)] group-focus-visible:border-white/60">
+      <div className="relative aspect-square w-full overflow-hidden rounded-full border border-white/15 bg-[#0b0b0b] transition-[border-color,box-shadow] duration-700 group-hover:border-white/60 group-focus-visible:border-white/60">
         {m.photo ? (
           <>
             <img src={m.photo} alt={m.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover grayscale transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0" />

@@ -16,7 +16,7 @@ export function Bulletins() {
     <section ref={root} id="announcements" aria-labelledby="bulletins-title" data-spark="0.42 -0.1 0.6 1.7" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1440px]">
         <h2 id="bulletins-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">Bulletins</h2>
-        <p className="t-label mt-4 text-mute-hi" data-reveal="up">Official updates & notices</p>
+        <p className="t-body mt-4" data-reveal="up">Official updates and notices from the club.</p>
 
         <div className="mt-12">
           {list.status === 'loading' && (
@@ -48,7 +48,7 @@ function Row({ a }: { a: Announcement }) {
   const prio = a.priority.toLowerCase()
   return (
     <li className="group relative border-b border-white/15" data-reveal="up">
-      {a.pinned && <span aria-hidden className="absolute -left-[var(--gutter)] top-0 bottom-0 w-px bg-spark shadow-[0_0_12px_rgb(26_159_232/0.9)] sm:left-0" />}
+      
       <button
         type="button"
         aria-expanded={open}
@@ -59,10 +59,10 @@ function Row({ a }: { a: Announcement }) {
         <span className="t-num text-[13px] font-[600] text-frost/80">{formatDateShort(a.date ?? a.createdAt.slice(0, 10))}</span>
         <span className="flex items-center gap-2">
           <span className="t-meta">{a.category}</span>
-          {a.pinned && <span className="t-meta !text-spark">· Pinned</span>}
+          {a.pinned && <span className="t-meta !text-white">· Pinned</span>}
         </span>
         <span className="min-w-0">
-          <span className="t-serif block text-[clamp(28px,2.8vw,42px)] leading-[1.02] text-white">{a.pinned && <span aria-label="Pinned" className="mr-3 inline-block h-2 w-2 -translate-y-[0.35em] rounded-full bg-spark shadow-[0_0_10px_rgb(26_159_232)]" />}{a.title}</span>
+          <span className="t-serif block text-[clamp(28px,2.8vw,42px)] leading-[1.02] text-white">{a.pinned && <span aria-label="Pinned" className="mr-3 inline-block h-2 w-2 -translate-y-[0.35em] rounded-full bg-white" />}{a.title}</span>
           {a.summary && <span className="t-body mt-1.5 block">{a.summary}</span>}
         </span>
         <span className="flex items-center gap-4 md:justify-end">

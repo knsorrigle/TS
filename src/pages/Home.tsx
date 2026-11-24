@@ -8,8 +8,6 @@ import { Archive } from '../sections/Archive'
 import { Team } from '../sections/Team'
 import { ClosingCta } from '../sections/ClosingCta'
 import { Footer } from '../sections/Footer'
-import { ScrollHud } from '../components/ScrollHud'
-import { MobileRegisterBar } from '../components/MobileRegisterBar'
 
 export function Home() {
   return (
@@ -24,8 +22,6 @@ export function Home() {
       <Team />
       <ClosingCta />
       <Footer loop />
-      <ScrollHud />
-      <MobileRegisterBar />
     </>
   )
 }

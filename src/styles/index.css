@@ -91,10 +91,6 @@
   .lenis.lenis-smooth { scroll-behavior: auto !important; }
   .lenis.lenis-stopped { overflow: clip; }
 
-  /* custom cursor active → hide native on fine pointers only */
-  html.has-cursor, html.has-cursor * { cursor: none !important; }
-  html.has-cursor input, html.has-cursor textarea, html.has-cursor select,
-  html.has-cursor [contenteditable] { cursor: text !important; }
 }
 
 /* ───────────────────────── Type primitives ─────────────────────────
@@ -103,21 +99,19 @@
    small semibold caps (lightly tracked) for labels. No mono, no 0.4em tracking. */
 @layer components {
   .t-meta {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.4;
-    font-weight: 560;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    font-weight: 450;
+    letter-spacing: 0;
     font-variant-numeric: tabular-nums;
     color: var(--color-mute-hi);
   }
   .t-label {
-    font-size: 11.5px;
+    font-size: 14px;
     line-height: 1.3;
-    font-weight: 620;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-frost);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: var(--color-mute-hi);
   }
   .t-num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
   /* editorial serif display (the Redis lesson): huge, tight, white */
@@ -175,10 +169,9 @@
     height: 44px;
     padding-inline: 22px;
     border-radius: 999px;
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
     white-space: nowrap;
     color: var(--color-frost);
     overflow: hidden;
@@ -194,17 +187,6 @@
     transition: border-color 0.4s;
     z-index: -1;
   }
-  .pill::after { /* light sweep */
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    background: linear-gradient(100deg, transparent 30%, rgb(232 241 255 / 0.28) 50%, transparent 70%);
-    transform: translateX(-110%);
-    transition: transform 0.9s var(--ease-expo);
-    z-index: -1;
-  }
-  .pill:hover::after { transform: translateX(110%); }
   .pill:not(.pill--solid):not(.pill--spark):not(.pill--ghost):hover { background: #fff; color: #000; }
   .pill:hover::before { border-color: #fff; }
   .pill:active { transform: scale(0.97); }
@@ -215,17 +197,14 @@
     color: var(--color-void);
   }
   .pill--solid::before { border-color: transparent; }
-  .pill--solid::after { background: linear-gradient(100deg, transparent 30%, rgb(26 159 232 / 0.45) 50%, transparent 70%); }
-  .pill--solid:hover { box-shadow: 0 0 40px -6px rgb(26 159 232 / 0.65); }
+  .pill--solid:hover { background: rgb(255 255 255 / 0.86); }
 
-  .pill--spark {
-    background: radial-gradient(120% 180% at 30% 0%, #5cc4ff 0%, var(--color-spark) 35%, var(--color-cobalt) 100%);
-    color: var(--color-void);
-  }
+  /* kept as an alias: the primary action is plain white, no gradients, no glow */
+  .pill--spark { background: #fff; color: #000; }
   .pill--spark::before { border-color: transparent; }
-  .pill--spark:hover { box-shadow: 0 0 36px -4px rgb(26 159 232 / 0.8); }
+  .pill--spark:hover { background: rgb(255 255 255 / 0.86); }
 
-  .pill--sm { height: 36px; padding-inline: 16px; font-size: 11.5px; }
+  .pill--sm { height: 38px; padding-inline: 16px; font-size: 13.5px; }
 }
 
 /* ───────────────────────── Grain ───────────────────────── */
@@ -360,23 +339,19 @@
 
 /* ───────────────────────── Living pill inputs & chips ───────────────────────── */
 .living {
-  position: relative; isolation: isolate; overflow: hidden; border-radius: 999px;
-  background:
-    radial-gradient(70% 140% at var(--lg-x) 50%, rgb(var(--lg-glow, 26 159 232) / 0.38), transparent 70%),
-    radial-gradient(60% 120% at var(--lg-x2) 60%, rgb(var(--lg-glow2, 0 87 255) / 0.32), transparent 70%),
-    #060d1c;
-  box-shadow: inset 0 0 0 1px rgb(232 241 255 / 0.1);
-  transition: box-shadow 0.5s var(--ease-expo);
+  position: relative; overflow: hidden; border-radius: 14px;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+  transition: box-shadow 0.3s, background-color 0.3s;
 }
-.living:hover { box-shadow: inset 0 0 0 1px rgb(232 241 255 / 0.22); }
-.living.is-live, .living:focus-within { animation: lg-drift 7s linear infinite; }
-.living:focus-within { box-shadow: inset 0 0 0 1px rgb(26 159 232 / 0.7), 0 0 40px -10px rgb(26 159 232 / 0.6); }
-.living.is-invalid { box-shadow: inset 0 0 0 1px rgb(255 90 60 / 0.65); }
+.living:hover { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); }
+.living:focus-within { box-shadow: inset 0 0 0 1px #fff; background: rgb(255 255 255 / 0.05); }
+.living.is-invalid { box-shadow: inset 0 0 0 1px rgb(255 90 60 / 0.8); }
 .living > * { position: relative; z-index: 1; }
 
 .field-input {
   width: 100%; height: 58px; background: transparent; border: 0; outline: 0;
-  padding: 25px 22px 7px; color: var(--color-frost); font-size: 16px; caret-color: var(--color-spark);
+  padding: 25px 22px 7px; color: var(--color-frost); font-size: 16px; caret-color: #fff;
   appearance: none; -webkit-appearance: none;
 }
 .field-input::placeholder { color: transparent; }
@@ -387,7 +362,7 @@
   transition: transform 0.45s var(--ease-expo), font-size 0.45s var(--ease-expo), color 0.3s, top 0.45s var(--ease-expo);
 }
 .field-input:focus ~ .field-label, input.field-input:not(:placeholder-shown) ~ .field-label, .field-select.has-value ~ .field-label {
-  top: 11px; transform: translateY(0); font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-spark);
+  top: 9px; transform: translateY(0); font-size: 12px; font-weight: 500; color: var(--color-mute-hi);
 }
 select.field-input { padding-right: 44px; cursor: pointer; }
 select.field-input option { background: #060d1c; color: var(--color-frost); }
@@ -407,16 +382,6 @@ select.field-input option { background: #060d1c; color: var(--color-frost); }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* ───────────────────────── Register sheet aura (ref-03 material) ───────────────────────── */
-.register-aura {
-  background:
-    radial-gradient(55% 45% at var(--lg-x) 0%, rgb(232 241 255 / 0.55), transparent 70%),
-    radial-gradient(70% 70% at var(--lg-x2) 20%, rgb(26 159 232 / 0.55), transparent 70%),
-    radial-gradient(90% 80% at 50% 40%, rgb(0 87 255 / 0.45), transparent 75%);
-  filter: blur(40px) saturate(1.1);
-  animation: lg-drift 16s linear infinite;
-  opacity: 0.75;
-}
 @keyframes progress { 0% { transform: scaleX(0); transform-origin: left; } 50% { transform: scaleX(1); transform-origin: left; } 51% { transform-origin: right; } 100% { transform: scaleX(0); transform-origin: right; } }
 
 /* footer wordmark: letters fade up into the dark, lit by a horizon below */
@@ -448,16 +413,19 @@ section:has(.relight:hover) .dead-spark, section:has(.relight:focus-visible) .de
 @keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
 
-/* the crystal passes behind these (components layer, so `absolute`/`fixed` utilities still win) */
-@layer components { .above-spark { position: relative; z-index: 40; } }
-
-/* Redis-style pill nav */
+@layer components {
+  /* Redis-style pill nav (components layer so `hidden`/`lg:` utilities win) */
 .nav-pill {
   display: inline-flex; align-items: center; height: 36px; padding: 0 15px; border-radius: 999px;
   border: 1px solid rgb(255 255 255 / 0.55); color: #fff; font-size: 13.5px; font-weight: 500;
   transition: background-color 0.4s, color 0.4s, border-color 0.4s;
 }
 .nav-pill:hover, .nav-pill.is-active { background: #fff; color: #000; border-color: #fff; }
+}
+
+/* the crystal passes behind these (components layer, so `absolute`/`fixed` utilities still win) */
+@layer components { .above-spark { position: relative; z-index: 40; } }
+
 .pill--ghost { background: rgb(0 0 0 / 0.35); backdrop-filter: blur(8px); }
 .pill--ghost::before { border-color: rgb(255 255 255 / 0.22) !important; }
 .nav-scrim { background: linear-gradient(180deg, rgb(0 0 0 / 0.82) 30%, rgb(0 0 0 / 0)); }
@@ -490,3 +458,6 @@ input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.8); cur
 }
 html.spark-intro .spark-poster { opacity: 1; }
 html.spark-ready .spark-poster { opacity: 0; transition-duration: 0.7s; }
+
+/* image-less frames: editorial, not blobs */
+.duo-blank { background: #070707; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); }

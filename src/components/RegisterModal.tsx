@@ -142,8 +142,7 @@ function Sheet({ event }: { event: TSEvent }) {
   return (
     <div ref={root} className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center" role="presentation">
       {/* ref-03 material behind the sheet */}
-      <button type="button" aria-label="Close registration" tabIndex={-1} onClick={close} className="absolute inset-0 cursor-default bg-void/70 backdrop-blur-md" />
-      <div aria-hidden className="register-aura pointer-events-none absolute inset-0" />
+      <button type="button" aria-label="Close registration" tabIndex={-1} onClick={close} className="absolute inset-0 cursor-default bg-black/75 backdrop-blur-sm" />
 
       <div
         ref={panel}
@@ -151,16 +150,15 @@ function Sheet({ event }: { event: TSEvent }) {
         aria-modal="true"
         aria-labelledby="reg-title"
         tabIndex={-1}
-        className="relative z-10 flex max-h-[94svh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-ink/85 shadow-[0_40px_120px_-30px_rgb(0_87_255/0.6)] outline-none backdrop-blur-2xl sm:rounded-[28px]"
+        className="relative z-10 flex max-h-[94svh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[24px] border border-white/12 bg-[#0a0a0a] outline-none sm:rounded-[24px]"
       >
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${meta.to}, transparent)` }} />
         <header className="flex items-start justify-between gap-4 px-6 pb-2 pt-6 sm:px-8 sm:pt-8">
           <div className="min-w-0">
-            <p className="t-meta" style={{ color: meta.to }}>{meta.short} <span className="sep" /> {formatDateShort(event.date)}{event.time ? ` · ${event.time}` : ''}</p>
-            <h2 id="reg-title" className="t-h2 mt-2 text-[clamp(24px,3vw,32px)] text-frost">{event.title}</h2>
+            <p className="t-meta">{meta.short} · {formatDateShort(event.date)}{event.time ? ` · ${event.time}` : ''}</p>
+            <h2 id="reg-title" className="t-h1 mt-2 text-[clamp(32px,4vw,44px)]">{event.title}</h2>
             {event.location && <p className="mt-1 text-[14px] text-mute-hi">{event.location}</p>}
           </div>
-          <button type="button" onClick={close} disabled={busy} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line-strong text-mute-hi transition-all hover:rotate-90 hover:border-frost/40 hover:text-frost disabled:opacity-30">
+          <button type="button" onClick={close} disabled={busy} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 text-mute-hi transition-colors hover:border-white hover:text-white disabled:opacity-30">
             <X size={16} />
           </button>
         </header>
@@ -182,9 +180,9 @@ function Sheet({ event }: { event: TSEvent }) {
                 </p>
               )}
 
-              <button type="submit" disabled={busy} aria-busy={busy} className="pill pill--spark relative mt-3 !h-[54px] w-full !text-[13px] disabled:!opacity-100" data-cursor="REGISTER">
-                {busy ? <><Loader2 size={16} className="animate-spin" /> Reserving your seat…</> : <>Register <span aria-hidden>→</span></>}
-                {busy && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left animate-[progress_1.6s_var(--ease-quart)_infinite] bg-frost/80" />}
+              <button type="submit" disabled={busy} aria-busy={busy} className="pill pill--solid relative mt-3 !h-[54px] w-full !text-[15px] disabled:!opacity-100">
+                {busy ? <><Loader2 size={16} className="animate-spin" /> Reserving your seat…</> : 'Reserve my seat'}
+                {busy && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left animate-[progress_1.6s_var(--ease-quart)_infinite] bg-black/50" />}
               </button>
               <p className="pt-1 text-center text-[12.5px] text-mute">One registration per student. Bring your student ID.</p>
             </form>
@@ -258,11 +256,11 @@ function Success({ event, status, name, onClose }: { event: TSEvent; status: 'Co
   return (
     <div ref={ref} className="pb-2 pt-4 text-center" role="status">
       <div className="relative mx-auto grid h-20 w-20 place-items-center">
-        <span data-orb aria-hidden className={`absolute inset-6 rounded-full ${confirmed ? 'bg-frost shadow-[0_0_30px_10px_rgb(26_159_232/0.8),0_0_80px_30px_rgb(0_87_255/0.35)]' : 'bg-periwinkle/80 shadow-[0_0_26px_8px_rgb(123_134_232/0.55)]'}`} />
+        <span data-orb aria-hidden className="absolute inset-5 rounded-full bg-white" />
         <Check aria-hidden size={18} strokeWidth={3} className="relative text-void" data-unfold />
       </div>
-      <p data-unfold className="t-meta mt-6" style={{ color: confirmed ? '#1A9FE8' : '#7B86E8' }}>{confirmed ? 'Seat reserved' : 'On the waitlist'}</p>
-      <h3 data-unfold className="t-h1 mt-3 text-[clamp(30px,4.4vw,44px)] text-frost">{confirmed ? `You’re in, ${name}.` : `Hang tight, ${name}.`}</h3>
+      <p data-unfold className="t-meta mt-6">{confirmed ? 'Seat reserved' : 'On the waitlist'}</p>
+      <h3 data-unfold className="t-h1 mt-3 text-[clamp(34px,4.8vw,50px)]">{confirmed ? `You’re in, ${name}.` : `Hang tight, ${name}.`}</h3>
       <p data-unfold className="t-body mx-auto mt-3 max-w-[40ch]">
         {confirmed
           ? 'Your seat has been reserved. Check in at the entrance with your student ID.'
@@ -288,8 +286,7 @@ function Success({ event, status, name, onClose }: { event: TSEvent; status: 'Co
 function Duplicate({ event, onClose, onAgain }: { event: TSEvent; onClose: () => void; onAgain: () => void }) {
   return (
     <div className="pb-2 pt-6 text-center" role="status">
-      <span aria-hidden className="mx-auto block h-2 w-2 rounded-full bg-spark shadow-[0_0_18px_5px_rgb(26_159_232/0.7)]" />
-      <h3 className="t-h1 mt-7 text-[clamp(28px,4vw,40px)] text-frost">You’re already on the list.</h3>
+      <h3 className="t-h1 text-[clamp(32px,4.4vw,46px)]">You’re already on the list.</h3>
       <p className="t-body mx-auto mt-3 max-w-[40ch]">This roll number or email is already registered for {event.title}. No need to do it twice — just bring your student ID.</p>
       <div className="mt-8 grid gap-2 sm:grid-cols-2">
         <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" className="pill pill--sm"><CalendarPlus size={14} /> Add to calendar</a>

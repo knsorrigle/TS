@@ -35,27 +35,24 @@ export function Intro() {
   return (
     <section ref={root} id="intro" aria-labelledby="intro-title" data-spark="0.36 0.1 0.8 0.35" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-[var(--section-pad)] pt-[calc(var(--section-pad)*0.7)]">
       {/* the hero's line arrives here */}
-      <div aria-hidden className="absolute left-1/2 top-0 h-[22vh] w-px -translate-x-1/2 bg-gradient-to-b from-frost via-spark/70 to-transparent shadow-[0_0_14px_rgb(26_159_232/0.8)]" />
+      <div aria-hidden className="absolute left-1/2 top-0 h-[22vh] w-px -translate-x-1/2 bg-gradient-to-b from-white/80 via-spark/50 to-transparent" />
 
       <div className="mx-auto max-w-[1440px]">
-        <p className="t-label flex items-center justify-center gap-3 text-center" data-reveal="up">
-          <span className="text-mute-hi">Campus community</span><span className="h-3 w-px bg-line-strong" aria-hidden /><span>Welcome to Techspark</span>
-        </p>
 
         <h2 id="intro-title" className="sr-only">Technology. Creativity. Community.</h2>
-        <div aria-hidden className="mt-[clamp(48px,8vh,96px)] flex flex-col items-center">
-          {WORDS.map((w, i) => (
+        <div aria-hidden className="flex flex-col items-center">
+          {WORDS.map((w) => (
             <div key={w} data-word className="relative">
               <span className="t-serif block text-[clamp(72px,18vw,320px)] leading-[0.86] text-[#0d1526]">{w}</span>
               <span
                 data-lit
-                className="t-serif absolute inset-0 block text-[clamp(72px,18vw,320px)] leading-[0.86] text-white [text-shadow:0_0_40px_rgb(26_159_232/0.55),0_0_2px_rgb(232_241_255/0.6)]"
+                className="t-serif absolute inset-0 block text-[clamp(72px,18vw,320px)] leading-[0.86] text-white"
                 style={{ clipPath: 'inset(0 0 100% 0)' }}
               >
                 {w}
               </span>
-              <span data-front className="pointer-events-none absolute -inset-x-[6vw] h-px bg-gradient-to-r from-transparent via-frost to-transparent opacity-0 shadow-[0_0_18px_3px_rgb(26_159_232/0.9)]" />
-              <span className="t-num absolute -left-2 top-[12%] -translate-x-full text-[12px] font-[650] text-mute-hi max-md:hidden">{`0${i + 1}`}</span>
+              <span data-front className="pointer-events-none absolute -inset-x-[6vw] h-px bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-0" />
+              
             </div>
           ))}
         </div>
@@ -65,7 +62,7 @@ export function Intro() {
             A student-led college club hosting technical, non-technical, and fun events. Explore technology, participate in events, and build your skills alongside fellow students.
           </p>
           <div className="flex flex-wrap gap-3 md:justify-end" data-reveal="up" data-delay="0.15">
-            <Magnetic><button type="button" onClick={() => scrollToTarget('events', { offset: -40 })} className="pill pill--solid" data-cursor="VIEW">Explore events <span aria-hidden>→</span></button></Magnetic>
+            <Magnetic><button type="button" onClick={() => scrollToTarget('events', { offset: -40 })} className="pill pill--solid">Explore events <span aria-hidden>→</span></button></Magnetic>
             <Magnetic><button type="button" onClick={() => scrollToTarget('about')} className="pill">Discover Techspark</button></Magnetic>
           </div>
         </div>

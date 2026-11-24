@@ -11,13 +11,12 @@ export function Footer({ loop = false }: { loop?: boolean }) {
   const [user, domain] = SITE.email.split('@')
   return (
     <>
-      <footer data-spark="-0.36 0.12 0.7 3.0" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-10 pt-[clamp(96px,16vh,200px)]">
+      <footer id="contact" data-spark="-0.36 0.12 0.7 3.0" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-10 pt-[clamp(96px,16vh,200px)]">
         <div className="mx-auto max-w-[1440px]">
-          <p className="t-label text-mute-hi">Say hello</p>
+          <p className="t-label">Say hello</p>
           <button
             type="button"
             onClick={() => { copyText(SITE.email, 'Copied! Email us anytime.'); flareSpark(0.5) }}
-            data-cursor="COPY"
             className="t-h1 above-spark group mt-6 block text-left text-[clamp(52px,9.6vw,170px)] leading-[0.88] transition-colors"
             aria-label={`Copy email address ${SITE.email}`}
           >
@@ -27,7 +26,7 @@ export function Footer({ loop = false }: { loop?: boolean }) {
 
           <div className="above-spark mt-[clamp(64px,10vh,120px)] grid gap-10 border-t border-white/15 pt-8 sm:grid-cols-[1fr_1fr_auto]">
             <div>
-              <p className="t-label text-mute-hi">Follow us</p>
+              <p className="t-label">Follow us</p>
               <ul className="mt-3 space-y-1.5 text-[15px]">
                 <li><a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="link-u">Instagram <span className="sr-only">(opens in a new tab)</span></a></li>
                 {CLUB_GITHUB_URL && <li><a href={CLUB_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="link-u">GitHub</a></li>}
@@ -35,13 +34,13 @@ export function Footer({ loop = false }: { loop?: boolean }) {
               </ul>
             </div>
             <div>
-              <p className="t-label text-mute-hi">Find us</p>
+              <p className="t-label">Find us</p>
               <p className="mt-3 text-[15px] leading-relaxed text-white/85">{SITE.dept}<br />{SITE.college}, {SITE.city}</p>
             </div>
             <div className="flex flex-col items-start gap-3 sm:items-end">
               <Link to="/" viewTransition aria-label="TECHSPARK — home" className="flex items-center gap-2.5">
                 <img src="/logo-128.webp" alt="" width={40} height={40} loading="lazy" className="h-10 w-10" />
-                <span className="text-[13px] font-[680] uppercase tracking-[0.05em]">Techspark</span>
+                <span className="text-[14px] font-[600]">TECHSPARK</span>
               </Link>
             </div>
           </div>

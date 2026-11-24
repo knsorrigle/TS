@@ -10,8 +10,7 @@ export function Statement() {
   return (
     <section ref={root} id="about" aria-labelledby="about-title" data-spark="-0.38 -0.05 0.75 0.6" className="relative overflow-hidden bg-void py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1280px] px-[var(--gutter)] text-center">
-        <p className="t-label text-mute-hi" data-reveal="up">Student-led initiative <span className="sep" /> Campus based</p>
-        <h2 id="about-title" className="t-h1 above-spark mx-auto mt-8 max-w-[15ch] text-[clamp(48px,8.4vw,148px)]" data-reveal="lines">
+        <h2 id="about-title" className="t-h1 above-spark mx-auto max-w-[15ch] text-[clamp(48px,8.4vw,148px)]" data-reveal="lines">
           Bringing students together through campus events.
         </h2>
         <p className="t-body above-spark mx-auto mt-10 max-w-[58ch] text-[clamp(16px,1.3vw,19px)] text-frost/75" data-reveal="lines" data-delay="0.1">
@@ -25,7 +24,7 @@ export function Statement() {
             <div key={k} className="marquee__set">
               {WORDS.map((w) => (
                 <span key={w} className="t-serif flex items-center gap-[clamp(24px,3vw,48px)] whitespace-nowrap text-[clamp(30px,3.6vw,56px)] text-white/85">
-                  {w}<span className="h-1.5 w-1.5 rounded-full bg-spark shadow-[0_0_10px_rgb(26_159_232)]" />
+                  {w}<span className="text-white/25">/</span>
                 </span>
               ))}
             </div>

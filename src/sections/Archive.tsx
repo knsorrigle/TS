@@ -46,12 +46,12 @@ export function Archive() {
 function Frame({ p, i }: { p: PastEvent; i: number }) {
   const meta = CATEGORY_META[categoryKey(p.category)]
   const d = p.date ? new Date(`${p.date}T00:00:00`) : null
-  const edge = `TS_06 · ${String(i + 1).padStart(4, '0')} · ${d ? d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }).toUpperCase() : '—'}`
+  const when = d ? d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : ''
   return (
     <article className="above-spark group relative flex w-[min(80vw,440px)] shrink-0 snap-start flex-col">
-      <p className="t-meta mb-3 flex justify-between"><span>{edge}</span><span style={{ color: meta.to }}>{meta.short}</span></p>
+      <p className="t-meta mb-3 flex justify-between"><span>{when}</span><span>{meta.short}</span></p>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[28px]">
-        <Duotone src={p.image} alt={p.title} category={p.category} className="absolute inset-0" />
+        <Duotone src={p.image} alt={p.title} category={p.category} className="absolute inset-0" blank={<span className="t-serif absolute bottom-5 left-6 text-[clamp(72px,8vw,120px)] leading-none text-white/90">{String(i + 1).padStart(2, '0')}</span>} />
         {p.participants > 0 && (
           <span className="t-num absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-void/65 px-3 py-1.5 text-[12px] font-[600] text-frost backdrop-blur">
             <Users size={13} aria-hidden /> {p.participants} participants
@@ -60,7 +60,7 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
       </div>
       <h3 className="t-h1 mt-5 text-[clamp(30px,2.6vw,40px)]">{p.title}</h3>
       <p className="t-body mt-2">{p.description}</p>
-      {p.highlight && <p className="mt-3 text-[14.5px] font-[560] text-spark">★ {p.highlight}</p>}
+      {p.highlight && <p className="mt-3 text-[14.5px] text-spark">{p.highlight}</p>}
     </article>
   )
 }
@@ -104,11 +104,11 @@ function PinnedStrip({ items }: { items: PastEvent[] }) {
   }, [])
 
   return (
-    <div ref={stage} className="relative flex h-[100svh] select-none items-center overflow-hidden" data-cursor="DRAG">
+    <div ref={stage} className="relative flex h-[100svh] select-none items-center overflow-hidden">
       <div ref={track} className="flex gap-[clamp(20px,3vw,48px)] px-[var(--gutter)] pt-[var(--nav-h)] will-change-transform">
         {items.map((p, i) => <Frame key={p.id} p={p} i={i} />)}
         <div className="flex w-[30vw] shrink-0 items-center">
-          <p className="t-meta">End of reel <span className="sep" /> {items.length} sessions</p>
+          <p className="t-meta">{items.length} sessions so far</p>
         </div>
       </div>
     </div>

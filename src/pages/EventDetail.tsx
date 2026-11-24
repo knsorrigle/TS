@@ -76,7 +76,7 @@ export function EventDetail() {
                   {e.speaker && <div className="flex gap-3"><dt className="sr-only">Speaker</dt><Mic2 size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">{e.speaker}</dd></div>}
                 </dl>
                 {start && ms > 0 && (
-                  <p className="mt-6 border-t border-line pt-5"><span className="t-meta block">Starts in</span><span className="t-num mt-1 block text-[26px] font-[500] tracking-[-0.02em] text-spark">{formatCountdown(ms)}</span></p>
+                  <p className="mt-6 border-t border-line pt-5"><span className="t-meta block">Starts in</span><span className="t-num mt-1 block text-[26px] font-[500] tracking-[-0.02em] text-white">{formatCountdown(ms)}</span></p>
                 )}
                 <div className="mt-6 border-t border-line pt-5"><SeatLine e={e} /></div>
                 <div className="mt-6"><RegisterButton e={e} size="md" full /></div>
