@@ -18,10 +18,11 @@ export const spark = {
 export const flareSpark = (amount = 1) => { spark.flare = Math.max(spark.flare, amount) }
 export const leanSpark = (p: { x: number; y: number } | null) => { spark.lean = p }
 
-/** Device tier: decides glass quality and shard count. */
-export function sparkTier(): 'high' | 'low' {
+/** Device tier: high = desktop glass, mid = phones (real glass, fewer samples), low = weak GPUs. */
+export function sparkTier(): 'high' | 'mid' | 'low' {
   const nav = navigator as Navigator & { deviceMemory?: number }
   const small = matchMedia('(max-width: 767px)').matches
-  const weak = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4
-  return small || weak ? 'low' : 'high'
+  const weak = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 3
+  if (weak) return 'low'
+  return small ? 'mid' : 'high'
 }

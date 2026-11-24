@@ -155,7 +155,7 @@ export function Nav() {
             to="/"
             viewTransition
             onClick={(e) => { if (onHome) { e.preventDefault(); setOpen(false); getLenis() ? getLenis()!.scrollTo(0, { duration: 1.6 }) : window.scrollTo({ top: 0, behavior: 'smooth' }) } }}
-            className="group flex items-center gap-3"
+            className="tap-44 group flex items-center gap-3"
             aria-label="TECHSPARK — home"
           >
             <img

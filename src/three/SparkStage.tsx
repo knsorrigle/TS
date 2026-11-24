@@ -20,7 +20,7 @@ if (typeof window !== 'undefined') {
 const SPARK = new THREE.Color('#1A9FE8')
 const CORE = new THREE.Color(1.4, 2.8, 4.6) // > 1 so it reads hot through tone mapping
 
-function Crystal({ tier, reduced }: { tier: 'high' | 'low'; reduced: boolean }) {
+function Crystal({ tier, reduced }: { tier: 'high' | 'mid' | 'low'; reduced: boolean }) {
   const group = useRef<THREE.Group>(null)
   const body = useRef<THREE.Mesh>(null)
   const core = useRef<THREE.Mesh>(null)
@@ -64,7 +64,7 @@ function Crystal({ tier, reduced }: { tier: 'high' | 'low'; reduced: boolean }) 
     g.scale.setScalar(base)
     g.rotation.set(
       0.18 + pointer.y * -0.25 + Math.sin(t * 0.37) * 0.05,
-      c.spin + c.r * Math.PI * 2 + (1 - intro) * 3,
+      reduced ? 0.62 : c.spin + c.r * Math.PI * 2 + (1 - intro) * 3, // reduced motion: one fixed, well-lit angle
       pointer.x * -0.2 + Math.cos(t * 0.29) * 0.04,
     )
 
@@ -84,15 +84,15 @@ function Crystal({ tier, reduced }: { tier: 'high' | 'low'; reduced: boolean }) 
   return (
     <group ref={group}>
       <mesh ref={body} geometry={geo}>
-        {tier === 'high' ? (
+        {tier !== 'low' ? (
           <MeshTransmissionMaterial
-            samples={6} resolution={512} transmission={1} roughness={0.04} thickness={0.9} ior={1.62}
-            chromaticAberration={0.4} anisotropicBlur={0.12} distortion={0.18} distortionScale={0.4} temporalDistortion={0.06}
-            backside backsideThickness={0.35} color="#eef6ff" attenuationColor="#5cc4ff" attenuationDistance={2.4} envMapIntensity={1.8}
+            samples={tier === 'high' ? 6 : 3} resolution={tier === 'high' ? 512 : 256} transmission={1} roughness={0.04} thickness={0.9} ior={1.62}
+            chromaticAberration={tier === 'high' ? 0.4 : 0.22} anisotropicBlur={tier === 'high' ? 0.12 : 0.05} distortion={0.18} distortionScale={0.4} temporalDistortion={0.06}
+            backside={tier === 'high'} backsideThickness={0.35} color="#eef6ff" attenuationColor="#5cc4ff" attenuationDistance={2.4} envMapIntensity={1.8}
           />
         ) : (
           // phones: no transmission pass — a dark, glossy blue glass that catches the studio light
-          <meshPhysicalMaterial color="#123a7a" roughness={0.04} metalness={0.15} clearcoat={1} clearcoatRoughness={0.05} transparent opacity={0.62} envMapIntensity={2.4} emissive="#0a2a66" emissiveIntensity={0.35} />
+          <meshPhysicalMaterial color="#5a9cff" roughness={0.03} metalness={0.05} clearcoat={1} clearcoatRoughness={0.03} transparent opacity={0.38} envMapIntensity={2.6} emissive="#1A9FE8" emissiveIntensity={0.25} />
         )}
       </mesh>
       <lineSegments geometry={edges}>
@@ -111,13 +111,13 @@ function Crystal({ tier, reduced }: { tier: 'high' | 'low'; reduced: boolean }) 
 }
 
 /* Light fragments: glass shards (mid/back) + soft orbs (front, blurred), parallaxing at three depths. */
-function Fragments({ tier, reduced }: { tier: 'high' | 'low'; reduced: boolean }) {
+function Fragments({ tier, reduced }: { tier: 'high' | 'mid' | 'low'; reduced: boolean }) {
   const { viewport, camera } = useThree()
   const shardGeo = useMemo(() => { const g = new THREE.OctahedronGeometry(1, 0); g.scale(0.7, 1.15, 0.7); return g }, [])
   const orbTex = useMemo(() => glowTexture('#bfe4ff', '#1A9FE8', 128), [])
   const items = useMemo(() => {
     const rnd = mulberry(7)
-    const n = tier === 'high' ? 16 : 7
+    const n = tier === 'high' ? 16 : tier === 'mid' ? 9 : 6
     return Array.from({ length: n }, (_, i) => {
       const layer = i % 3 // 0 back, 1 mid, 2 front
       return {
@@ -208,10 +208,13 @@ export default function SparkStage() {
   const reduced = useMemo(reducedMotion, [])
 
   // the crystal assembles once the aperture has opened (or immediately on repeat/reduced)
+  // if the poster is already showing (we arrived late), appear in place and crossfade instead of re-assembling
+  const late = useMemo(() => document.documentElement.classList.contains('spark-intro'), [])
   useEffect(() => onIntroDone(() => {
-    if (reduced) { spark.intro = 1; return }
+    if (reduced || late) { spark.intro = 1; return }
     gsap.to(spark, { intro: 1, duration: 1.6, ease: 'expo.out', delay: 0.1, onComplete: () => { spark.flare = 0.6 } })
-  }), [reduced])
+  }), [reduced, late])
+  useEffect(() => () => document.documentElement.classList.remove('spark-ready'), [])
 
   return (
     <Canvas
@@ -222,6 +225,7 @@ export default function SparkStage() {
       gl={{ alpha: true, antialias: tier === 'high', powerPreference: 'high-performance' }}
       camera={{ fov: 32, position: [0, 0, 10], near: 0.1, far: 40 }}
       eventSource={undefined}
+      onCreated={() => requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.add('spark-ready')))}
     >
       <Studio />
       <ambientLight intensity={0.25} />

@@ -15,7 +15,7 @@ class Guard extends Component<{ children: ReactNode; fallback: ReactNode }, { fa
 }
 
 const Still = () => (
-  <img aria-hidden src="/spark-still.png" alt="" className="pointer-events-none fixed left-1/2 top-[44%] z-30 w-[min(22vw,180px)] -translate-x-1/2 -translate-y-1/2 opacity-90" />
+  <img aria-hidden src="/spark-still.webp" alt="" className="pointer-events-none fixed left-1/2 top-[44%] z-30 w-[min(22vw,180px)] -translate-x-1/2 -translate-y-1/2 opacity-90" />
 )
 
 /** One persistent crystal across routes; loaded after first paint so it never blocks the hero. */
@@ -24,13 +24,30 @@ export function SparkLayer() {
   const [ready, setReady] = useState(false)
   const [gl] = useState(hasWebGL)
   useEffect(() => {
-    // after the page has loaded and the main thread is idle: never competes with the hero's first paint
+    // Desktop: after load, when the main thread is idle.
+    // Touch devices: on first touch/scroll (or after 8s); the hero shows the crystal poster until then,
+    // so a phone's first seconds stay free for the page itself.
     let id = 0
+    let fallback = 0
     const go = () => setReady(true)
-    const schedule = () => { id = 'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 1200 }) : (setTimeout(go, 300) as unknown as number) }
+    const coarse = matchMedia('(pointer: coarse)').matches
+    const events = ['pointerdown', 'touchstart', 'wheel', 'keydown', 'scroll'] as const
+    const onFirst = () => { cleanupFirst(); go() }
+    const cleanupFirst = () => events.forEach((e) => removeEventListener(e, onFirst))
+    const schedule = () => {
+      if (coarse) {
+        events.forEach((e) => addEventListener(e, onFirst, { once: true, passive: true }))
+        fallback = window.setTimeout(onFirst, 8000)
+      } else {
+        id = 'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 1200 }) : (setTimeout(go, 300) as unknown as number)
+      }
+    }
     if (document.readyState === 'complete') schedule()
     else addEventListener('load', schedule, { once: true })
-    return () => { removeEventListener('load', schedule); 'cancelIdleCallback' in window ? cancelIdleCallback(id) : clearTimeout(id) }
+    return () => {
+      removeEventListener('load', schedule); cleanupFirst(); clearTimeout(fallback)
+      'cancelIdleCallback' in window ? cancelIdleCallback(id) : clearTimeout(id)
+    }
   }, [])
   if (pathname.startsWith('/admin')) return null
   if (!gl) return pathname === '/' ? <Still /> : null

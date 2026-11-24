@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createHero, type HeroGL } from '../gl/createHero'
 import { gsap, lockScroll, reducedMotion, scrollToTarget } from '../lib/motion'
 import { hasIgnitedThisSession, markIntroDone } from '../lib/intro'
@@ -10,6 +11,11 @@ export function Hero() {
   const canvas = useRef<HTMLCanvasElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const gl = useRef<HeroGL | null>(null)
+  const title = useRef<HTMLDivElement>(null)
+  // The hero is pinned (position: fixed → its own stacking context), so nothing inside it can rise above
+  // the crystal's canvas. The title lines and the crystal poster therefore live in a portal at the root:
+  // "Tech" above the crystal (z 40), the poster at 30, "Spark" below (z 20).
+  const [layered] = useState(() => !reducedMotion())
   const [noGL, setNoGL] = useState(false)
   const [covered, setCovered] = useState(true) // black cover until the first GL frame exists
 
@@ -58,8 +64,9 @@ export function Hero() {
   useLayoutEffect(() => {
     const root = content.current
     if (!root) return
-    const letters = root.querySelectorAll('[data-letter]')
-    const lines = root.querySelectorAll('[data-line]')
+    const scopes = [root, title.current].filter(Boolean) as HTMLElement[]
+    const letters = scopes.flatMap((s) => [...s.querySelectorAll('[data-letter]')])
+    const lines = scopes.flatMap((s) => [...s.querySelectorAll('[data-line]')])
     const reduced = reducedMotion()
     const ctx = gsap.context(() => {
       gsap.set(letters, { yPercent: 105 })
@@ -93,7 +100,9 @@ export function Hero() {
           onUpdate: (st) => gl.current?.setScroll(st.progress),
         },
       })
-      tl.to('[data-hero-text]', { yPercent: -60, autoAlpha: 0, duration: 0.35 }, 0)
+      const text = [...(title.current?.querySelectorAll('[data-hero-text]') ?? []), ...section.current!.querySelectorAll('[data-hero-text]')]
+      tl.to(text, { yPercent: -60, autoAlpha: 0, duration: 0.35 }, 0)
+        .to(title.current?.querySelector('[data-poster-wrap]') ?? {}, { autoAlpha: 0, duration: 0.3 }, 0.05)
         .to('[data-hero-chrome]', { autoAlpha: 0, duration: 0.15 }, 0)
         .set({}, {}, 1) // pad the timeline to the full pin length
     }, section)
@@ -116,17 +125,8 @@ export function Hero() {
       />
 
       <div ref={content} className="pointer-events-none absolute inset-0 px-[var(--gutter)]">
-        {/* Tech / Spark — the seam of light runs between the two lines; the crystal sits in it,
-            in front of "Spark" and behind "Tech" */}
-        <h1 data-hero-text className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white">
-          <span className="sr-only">TECHSPARK</span>
-          <span aria-hidden className="t-serif above-spark block overflow-hidden pb-[0.04em] text-[clamp(112px,23vw,400px)] leading-[0.78]">
-            {[...'Tech'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
-          </span>
-          <span aria-hidden className="t-serif relative z-20 mt-[clamp(10px,2.2vw,34px)] block overflow-hidden pb-[0.06em] text-[clamp(112px,23vw,400px)] leading-[0.78]">
-            {[...'Spark'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
-          </span>
-        </h1>
+        <h1 className="sr-only">TECHSPARK</h1>
+        {!layered && <Title />}
 
         {/* bottom-left: the ticket stub */}
         <div data-hero-chrome className="pointer-events-auto absolute bottom-6 left-[var(--gutter)] z-50">
@@ -154,7 +154,30 @@ export function Hero() {
           </span>
         </button>
       </div>
+      {layered && createPortal(<div ref={title} className="hero-title-layer"><Title layered /></div>, document.body)}
     </section>
+  )
+}
+
+/** Tech / Spark: the seam of light runs between the lines; the crystal sits in it. */
+function Title({ layered = false }: { layered?: boolean }) {
+  const size = 'text-[clamp(112px,23vw,400px)] leading-[0.78]'
+  const pos = layered ? 'fixed' : 'absolute'
+  return (
+    <div aria-hidden className="pointer-events-none">
+      <div data-hero-text className={`${pos} inset-x-0 bottom-[calc(50%+clamp(5px,1.1vw,17px))] z-40 text-center text-white`}>
+        <span className={`t-serif block overflow-hidden pb-[0.04em] ${size}`}>
+          {[...'Tech'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
+        </span>
+      </div>
+      {/* crystal poster: visible instantly in the hero pose; the live 3D crystal crossfades over it */}
+      {layered && <div data-poster-wrap><img src="/spark-still.webp" alt="" width={267} height={299} fetchPriority="high" className="spark-poster !fixed" /></div>}
+      <div data-hero-text className={`${pos} inset-x-0 top-[calc(50%+clamp(5px,1.1vw,17px))] z-20 text-center text-white`}>
+        <span className={`t-serif block overflow-hidden pb-[0.06em] ${size}`}>
+          {[...'Spark'].map((c, i) => <span key={i} data-letter className="inline-block will-change-transform">{c}</span>)}
+        </span>
+      </div>
+    </div>
   )
 }
 

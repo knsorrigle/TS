@@ -148,7 +148,7 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
         <p className="t-num mx-auto mt-3 max-w-[70ch] text-[14.5px] text-mute-hi">
           {[formatDateShort(e.date), e.time, e.location, meta.short].filter(Boolean).join(' · ')}
           <span className="mx-2 text-white/25">·</span>
-          <span className={s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}>{s.label}</span>
+          <span className={`whitespace-nowrap ${s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}`}>{s.label}</span>
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <RegisterButton e={e} />

@@ -98,7 +98,7 @@ function LoopTail() {
   if (reducedMotion()) return null
   return (
     <div ref={ref} aria-hidden data-spark="0 0 1.25 0" className="relative h-[100svh] overflow-hidden bg-void">
-      <img src="/hero-still.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <img src="/hero-still.jpg" alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white">
         <span className="t-serif above-spark block pb-[0.04em] text-[clamp(112px,23vw,400px)] leading-[0.78]">Tech</span>
         <span className="t-serif relative z-20 mt-[clamp(10px,2.2vw,34px)] block pb-[0.06em] text-[clamp(112px,23vw,400px)] leading-[0.78]">Spark</span>
