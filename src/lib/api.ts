@@ -1,4 +1,9 @@
-import { supabase, isSupabaseConfigured } from './supabase'
+import { getSupabase, isSupabaseConfigured as isSupabaseConfiguredFlag } from './supabase'
+import { demoAnnouncements, demoEvents, demoPastEvents } from './demo'
+
+/** Dev without keys → fixtures. Production without keys → the designed error states. */
+export const isDemo = import.meta.env.DEV && !isSupabaseConfiguredFlag
+const wait = <T,>(v: T, ms = 700) => new Promise<T>((r) => setTimeout(() => r(v), ms))
 
 /* ───────── DB rows (snake_case) ───────── */
 export interface EventRow {
@@ -78,44 +83,59 @@ function strip<T extends object>(o: T): T {
 }
 
 export class ApiError extends Error {}
-function client() {
-  if (!supabase || !isSupabaseConfigured) throw new ApiError('Supabase is not configured')
-  return supabase
+async function client() {
+  const c = await getSupabase()
+  if (!c) throw new ApiError('Supabase is not configured')
+  return c
 }
 
 /* ───────── Public reads ───────── */
 export async function fetchEvents(): Promise<TSEvent[]> {
-  const { data, error } = await client().from('techspark_events').select('*').eq('published', true)
+  if (isDemo) return wait(demoEvents)
+  const { data, error } = await (await client()).from('techspark_events').select('*').eq('published', true)
     .order('date', { ascending: true, nullsFirst: false })
   if (error) throw new ApiError(error.message)
   return (data as EventRow[]).map(toEvent)
 }
 export async function fetchEventBySlug(slug: string): Promise<TSEvent | null> {
-  const { data, error } = await client().from('techspark_events').select('*').eq('slug', slug).eq('published', true).maybeSingle()
+  if (isDemo) return wait(demoEvents.find((e) => e.slug === slug) ?? null, 400)
+  const { data, error } = await (await client()).from('techspark_events').select('*').eq('slug', slug).eq('published', true).maybeSingle()
   if (error) throw new ApiError(error.message)
   return data ? toEvent(data as EventRow) : null
 }
 export async function fetchAnnouncements(): Promise<Announcement[]> {
-  const { data, error } = await client().from('techspark_announcements').select('*').eq('published', true)
+  if (isDemo) return wait(demoAnnouncements, 900)
+  const { data, error } = await (await client()).from('techspark_announcements').select('*').eq('published', true)
     .order('pinned', { ascending: false }).order('created_at', { ascending: false })
   if (error) throw new ApiError(error.message)
   return (data as AnnouncementRow[]).map(toAnnouncement)
 }
 export async function fetchPastEvents(): Promise<PastEvent[]> {
-  const { data, error } = await client().from('techspark_past_events').select('*').eq('published', true)
+  if (isDemo) return wait(demoPastEvents, 1000)
+  const { data, error } = await (await client()).from('techspark_past_events').select('*').eq('published', true)
     .order('created_at', { ascending: false })
   if (error) throw new ApiError(error.message)
   return (data as PastEventRow[]).map(toPastEvent)
 }
 
-/* ───────── RSVP ───────── */
+/* ───────── Registration ───────── */
 export interface RegisterInput {
   eventId: string; name: string; email: string; roll: string; department: string; year: string
 }
 export interface RegisterResult { success: boolean; status?: 'Confirmed' | 'Waitlisted'; message?: string; error?: string }
 
+const demoSeen = new Set<string>()
 export async function registerForEvent(i: RegisterInput): Promise<RegisterResult> {
-  const { data, error } = await client().rpc('register_for_event', {
+  if (isDemo) {
+    const key = `${i.eventId}:${i.roll.trim().toUpperCase()}`
+    if (demoSeen.has(key)) return wait({ success: false, error: 'You have already registered for this event with this roll number.' }, 1200)
+    demoSeen.add(key)
+    const ev = demoEvents.find((e) => e.id === i.eventId)
+    const full = ev ? ev.capacity > 0 && ev.registeredCount >= ev.capacity : false
+    if (ev && !full) ev.registeredCount += 1
+    return wait({ success: true, status: full ? 'Waitlisted' : 'Confirmed', message: full ? 'Added to waitlist' : 'Registered' }, 1400)
+  }
+  const { data, error } = await (await client()).rpc('register_for_event', {
     p_event_id: i.eventId, p_student_name: i.name.trim(), p_student_email: i.email.trim().toLowerCase(),
     p_student_roll: i.roll.trim().toUpperCase(), p_department: i.department, p_year: i.year,
   })

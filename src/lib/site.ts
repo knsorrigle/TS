@@ -12,11 +12,11 @@ export const SITE = {
 export const CLUB_GITHUB_URL = ''
 
 export const SECTIONS = [
-  { id: 'about', label: 'About', nav: 'ABOUT' },
-  { id: 'activities', label: 'What We Do', nav: 'WHAT WE DO' },
-  { id: 'events', label: 'Events & RSVPs', nav: 'EVENTS' },
-  { id: 'announcements', label: 'Announcements', nav: 'BULLETINS' },
-  { id: 'archive', label: 'Event Archive', nav: 'ARCHIVE' },
+  { id: 'about', label: 'About', long: 'About' },
+  { id: 'activities', label: 'What we do', long: 'What We Do' },
+  { id: 'events', label: 'Events', long: 'Events & Registrations' },
+  { id: 'announcements', label: 'Bulletins', long: 'Announcements' },
+  { id: 'archive', label: 'Archive', long: 'Event Archive' },
 ] as const
 
 export type CategoryKey = 'technical' | 'non-technical' | 'fun'
@@ -34,3 +34,21 @@ export function categoryKey(raw: string | null | undefined): CategoryKey {
   if (s.includes('fun') || s.includes('social')) return 'fun'
   return 'technical'
 }
+
+export const CATEGORIES: { key: CategoryKey; mode: 0 | 1 | 2; title: string; tagline: string; body: string; tags: string[]; rail: string }[] = [
+  {
+    key: 'technical', mode: 0, title: 'Technical Events', tagline: 'Hackathons, Competitions, Workshops & Tech Talks',
+    body: 'Hands-on technical activities designed to challenge and inspire students. We organize campus hackathons, coding competitions, practical workshops, and insightful tech talks that provide real exposure and healthy competition.',
+    tags: ['Hackathons', 'Coding Competitions', 'Workshops', 'Tech Talks'], rail: 'Hack · Workshop · Talk',
+  },
+  {
+    key: 'non-technical', mode: 1, title: 'Non-Technical Events', tagline: 'Creative Showcases, Quizzes & Team Challenges',
+    body: 'Engaging activities tailored for students across all disciplines. From design showcases and general knowledge quizzes to presentation challenges and problem-solving contests, these events highlight talents beyond code.',
+    tags: ['Design Showcases', 'Campus Quizzes', 'Presentation Jams', 'Team Challenges'], rail: 'Design · Quiz · Pitch',
+  },
+  {
+    key: 'fun', mode: 2, title: 'Fun & Social Events', tagline: 'Recreational Gatherings, Games & Interactive Mixers',
+    body: 'Interactive events that bring the campus community together to relax and connect. Through interactive games, trivia sessions, social mixers, and club celebrations, we help students build lasting friendships.',
+    tags: ['Interactive Games', 'Trivia Battles', 'Social Mixers', 'Club Gatherings'], rail: 'Games · Trivia · Mixers',
+  },
+]
