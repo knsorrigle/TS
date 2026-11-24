@@ -6,4 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   assetsInclude: ['**/*.glsl'],
   server: { port: 5173 },
+  // pre-bundle everything up front so a late first import never re-optimizes into a second React copy
+  optimizeDeps: { include: ['react', 'react-dom', 'react-dom/client', 'react-router', 'gsap', 'gsap/ScrollTrigger', 'gsap/SplitText', 'lenis', 'ogl', 'lucide-react', '@supabase/supabase-js'] },
+  resolve: { dedupe: ['react', 'react-dom'] },
 })

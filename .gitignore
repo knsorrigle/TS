@@ -13,3 +13,4 @@ Claude outputs/
 .claude/
 screens/
 *.tsbuildinfo
+.playwright-mcp/
