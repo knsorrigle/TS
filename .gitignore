@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vercel
+*.log
+
+# third-party reference material: not ours to publish in a public repo
+refs/
+Claude outputs/
+.claude/
+screens/
+*.tsbuildinfo
