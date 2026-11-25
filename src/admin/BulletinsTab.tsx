@@ -68,6 +68,10 @@ export function BulletinsTab() {
             <Field label="Author"><Input value={edit.v.author ?? ''} onChange={(e) => set('author', e.target.value)} /></Field>
           </div>
           <Field label="Related event slug" hint="optional, e.g. spark-hack-24"><Input value={edit.v.relatedEventSlug ?? ''} onChange={(e) => set('relatedEventSlug', e.target.value)} /></Field>
+          <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+            <Field label="Link" hint="optional: form, PDF, results…"><Input value={edit.v.linkUrl ?? ''} onChange={(e) => set('linkUrl', e.target.value)} placeholder="https://…" /></Field>
+            <Field label="Link label"><Input value={edit.v.linkLabel ?? ''} onChange={(e) => set('linkLabel', e.target.value)} placeholder="Apply" /></Field>
+          </div>
           <div className="flex flex-wrap gap-6"><Toggle checked={!!edit.v.published} onChange={(v) => set('published', v)} label="Published" /><Toggle checked={!!edit.v.pinned} onChange={(v) => set('pinned', v)} label="Pinned" /></div>
         </>)}
       </Drawer>

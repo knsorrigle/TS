@@ -3,12 +3,12 @@ import { Plus, Pencil, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { deletePast, listPast, savePast } from './adminApi'
 import type { PastEvent } from '../lib/api'
 import { useList } from './useList'
-import { Badge, DeleteButton, Drawer, Field, ImageField, Input, Panel, Select, TableState, Textarea, Toggle } from './ui'
+import { Badge, DeleteButton, Drawer, Field, GalleryField, ImageField, Input, Panel, Select, TableState, Textarea, Toggle } from './ui'
 import { IconBtn } from './EventsTab'
 import { formatDateShort } from '../lib/time'
 import { toast } from '../lib/toast'
 
-const blank = (): Partial<PastEvent> => ({ title: '', date: '', participants: 0, category: 'Technical', description: '', image: '', highlight: '', published: true })
+const blank = (): Partial<PastEvent> => ({ title: '', date: '', participants: 0, category: 'Technical', description: '', image: '', highlight: '', published: true, gallery: [], linkUrl: '' })
 
 export function PastTab() {
   const list = useList(useCallback(listPast, []))
@@ -61,7 +61,9 @@ export function PastTab() {
           </div>
           <Field label="Description"><Textarea value={edit.v.description ?? ''} onChange={(e) => set('description', e.target.value)} /></Field>
           <Field label="Highlight" hint="Achievement line, shown in blue"><Input value={edit.v.highlight ?? ''} onChange={(e) => set('highlight', e.target.value)} placeholder="Winning team solved 9 of 10 problems" /></Field>
-          <ImageField value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
+          <Field label="Link" hint="optional: results, album…"><Input value={edit.v.linkUrl ?? ''} onChange={(e) => set('linkUrl', e.target.value)} placeholder="https://…" /></Field>
+          <ImageField label="Cover image" value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
+          <GalleryField value={edit.v.gallery ?? []} onChange={(v) => set('gallery', v)} />
           <Toggle checked={!!edit.v.published} onChange={(v) => set('published', v)} label="Published" />
         </>)}
       </Drawer>

@@ -3,13 +3,17 @@ import { Plus, Pencil, Star, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-r
 import { deleteEvent, listEvents, saveEvent, slugify } from './adminApi'
 import type { TSEvent } from '../lib/api'
 import { useList } from './useList'
-import { Badge, DeleteButton, Drawer, Field, ImageField, Input, Panel, Select, TableState, Textarea, Toggle } from './ui'
+import { Badge, DeleteButton, Drawer, Field, GalleryField, ImageField, Input, Panel, Select, TableState, Textarea, Toggle } from './ui'
 import { formatDateShort } from '../lib/time'
 import { toast } from '../lib/toast'
 
 const CATS = ['Technical', 'Non-Technical', 'Fun & Social']
 const STATUSES = ['Open', 'Full', 'Closed']
-const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false })
+const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', endTime: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false, registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [] })
+
+const MODES = [{ v: 'form', l: 'On this site (registration form)' }, { v: 'external', l: 'External link (Google Form, Unstop…)' }, { v: 'closed', l: 'Closed' }]
+/** <input type=datetime-local> wants local 'YYYY-MM-DDTHH:mm' */
+const toLocalInput = (iso: string | null | undefined) => { if (!iso) return ''; const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` }
 
 export function EventsTab() {
   const list = useList(useCallback(listEvents, []))
@@ -22,7 +26,7 @@ export function EventsTab() {
   const set = <K extends keyof TSEvent>(k: K, val: TSEvent[K]) => setEdit((s) => (s ? { ...s, v: { ...s.v, [k]: val } } : s))
 
   const quick = async (e: TSEvent, patch: Partial<TSEvent>, msg: string) => {
-    try { await saveEvent({ ...e, ...patch }, e.id); toast.success(msg); list.reload() }
+    try { const { registeredCount: _rc, ...rest } = e; void _rc; await saveEvent({ ...rest, ...patch }, e.id); toast.success(msg); list.reload() }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Update failed') }
   }
 
@@ -33,12 +37,15 @@ export function EventsTab() {
     if (!v.title?.trim()) errs.title = 'Required'
     if (!v.date) errs.date = 'Required'
     if ((v.capacity ?? 0) < 0) errs.capacity = 'Must be 0 or more'
+    if (v.registrationMode === 'external' && !/^https?:\/\//.test(v.registrationUrl ?? '')) errs.registrationUrl = 'Paste a full link (https://…)'
     setErrors(errs)
     if (Object.keys(errs).length) return
     setSaving(true)
     try {
       const tags = tagText.split(',').map((t) => t.trim().replace(/^#/, '')).filter(Boolean)
-      const saved = await saveEvent({ ...v, title: v.title!.trim(), tags, capacity: Number(v.capacity) || 0 }, edit.id)
+      const { registeredCount: _rc, ...rest } = v
+      void _rc
+      const saved = await saveEvent({ ...rest, title: v.title!.trim(), tags, capacity: Number(v.capacity) || 0 }, edit.id)
       toast.success(edit.id ? 'Event updated' : `Event created at /events/${saved.slug}`)
       setEdit(null)
       list.reload()
@@ -92,7 +99,8 @@ export function EventsTab() {
             <Field label="Full description" hint="Shown on the event page"><Textarea value={edit.v.fullDescription ?? ''} onChange={(e) => set('fullDescription', e.target.value)} className="!min-h-[160px]" /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Date" error={errors.date}><Input type="date" value={edit.v.date ?? ''} invalid={!!errors.date} onChange={(e) => set('date', e.target.value)} /></Field>
-              <Field label="Time"><Input value={edit.v.time ?? ''} onChange={(e) => set('time', e.target.value)} placeholder="6:00 PM" /></Field>
+              <Field label="Starts"><Input value={edit.v.time ?? ''} onChange={(e) => set('time', e.target.value)} placeholder="6:00 PM" /></Field>
+              <Field label="Ends" hint="optional"><Input value={edit.v.endTime ?? ''} onChange={(e) => set('endTime', e.target.value)} placeholder="9:00 PM" /></Field>
               <Field label="Location"><Input value={edit.v.location ?? ''} onChange={(e) => set('location', e.target.value)} placeholder="CSE Block, Lab 3" /></Field>
               <Field label="Speaker"><Input value={edit.v.speaker ?? ''} onChange={(e) => set('speaker', e.target.value)} /></Field>
               <Field label="Category"><Select options={CATS} value={edit.v.category} onChange={(e) => set('category', e.target.value)} /></Field>
@@ -100,7 +108,25 @@ export function EventsTab() {
               <Field label="Capacity" hint="0 = unlimited" error={errors.capacity}><Input type="number" min={0} value={edit.v.capacity ?? 0} onChange={(e) => set('capacity', Number(e.target.value))} /></Field>
               <Field label="Tags" hint="comma separated"><Input value={tagText} onChange={(e) => setTagText(e.target.value)} placeholder="Hackathon, Teams" /></Field>
             </div>
-            <ImageField value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
+            <div className="rounded-xl border border-line p-4">
+              <p className="mb-3 text-[13px] font-[600] text-frost">Registration</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="How students register" className="sm:col-span-2">
+                  <select value={edit.v.registrationMode ?? 'form'} onChange={(e) => set('registrationMode', e.target.value as TSEvent['registrationMode'])} className="h-11 w-full cursor-pointer rounded-xl border border-line-strong bg-void/60 px-3.5 text-[15px] text-frost outline-none focus:border-spark/70">
+                    {MODES.map((m) => <option key={m.v} value={m.v} className="bg-ink">{m.l}</option>)}
+                  </select>
+                </Field>
+                {edit.v.registrationMode === 'external' && (
+                  <Field label="Registration link" error={errors.registrationUrl} className="sm:col-span-2"><Input value={edit.v.registrationUrl ?? ''} invalid={!!errors.registrationUrl} onChange={(e) => set('registrationUrl', e.target.value)} placeholder="https://forms.gle/…" /></Field>
+                )}
+                <Field label="Registrations close" hint="optional">
+                  <Input type="datetime-local" value={toLocalInput(edit.v.registrationDeadline)} onChange={(e) => set('registrationDeadline', e.target.value ? new Date(e.target.value).toISOString() : null)} />
+                </Field>
+                {edit.id && <Field label="Registered so far" hint="auto-counted"><Input value={String(edit.v.registeredCount ?? 0)} disabled /></Field>}
+              </div>
+            </div>
+            <ImageField label="Cover image" value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
+            <GalleryField value={edit.v.gallery ?? []} onChange={(v) => set('gallery', v)} />
             <div className="flex flex-wrap gap-6 pt-1">
               <Toggle checked={!!edit.v.published} onChange={(v) => set('published', v)} label="Published" />
               <Toggle checked={!!edit.v.featured} onChange={(v) => set('featured', v)} label="Featured" />

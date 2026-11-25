@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { X, Upload, Loader2, Trash2, ImageOff, Link2 } from 'lucide-react'
+import { X, Upload, Loader2, Trash2, ImageOff, Link2, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { checkImage, uploadImage } from './adminApi'
 import { toast } from '../lib/toast'
 
@@ -159,4 +159,67 @@ export function TableState({ status, error, onRetry, empty, colSpan }: { status:
   if (status === 'error') return <tr><td colSpan={colSpan} className="px-5 py-12 text-center text-[14px] text-ember">{error} {onRetry && <button type="button" onClick={onRetry} className="ml-2 underline">Retry</button>}</td></tr>
   if (empty) return <tr><td colSpan={colSpan} className="px-5 py-12 text-center text-[14px] text-mute-hi">Nothing here yet.</td></tr>
   return null
+}
+
+/** Many photos: upload several at once, paste URLs, reorder, remove. */
+export function GalleryField({ value, onChange, label = 'Photo gallery' }: { value: string[]; onChange: (v: string[]) => void; label?: string }) {
+  const [busy, setBusy] = useState(0)
+  const [err, setErr] = useState('')
+  const [url, setUrl] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+  const add = async (files: FileList | null) => {
+    if (!files?.length) return
+    setErr('')
+    const list = [...files]
+    const bad = list.map(checkImage).find(Boolean)
+    if (bad) { setErr(bad); return }
+    setBusy(list.length)
+    const out: string[] = []
+    for (const f of list) {
+      try { out.push(await uploadImage(f)) } catch (e) { setErr(e instanceof Error ? e.message : 'Upload failed') }
+      setBusy((n) => n - 1)
+    }
+    if (out.length) { onChange([...value, ...out]); toast.success(`${out.length} photo${out.length === 1 ? '' : 's'} added`) }
+  }
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d
+    if (j < 0 || j >= value.length) return
+    const next = [...value]; [next[i], next[j]] = [next[j], next[i]]; onChange(next)
+  }
+  return (
+    <Field label={label} hint={`${value.length} photo${value.length === 1 ? '' : 's'} · JPG/PNG/WebP · 5 MB each`} error={err}>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {value.map((src, i) => (
+          <div key={src + i} className="group relative aspect-square overflow-hidden rounded-lg border border-line">
+            <img src={src} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-x-1 bottom-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+              <button type="button" onClick={() => move(i, -1)} aria-label="Move earlier" className="grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white"><ChevronLeft size={13} /></button>
+              <button type="button" onClick={() => onChange(value.filter((_, k) => k !== i))} aria-label="Remove photo" className="grid h-7 w-7 place-items-center rounded-full bg-black/80 text-ember"><Trash2 size={13} /></button>
+              <button type="button" onClick={() => move(i, 1)} aria-label="Move later" className="grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white"><ChevronRight size={13} /></button>
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => input.current?.click()} disabled={busy > 0} className="grid aspect-square place-items-center rounded-lg border border-dashed border-line-strong text-mute-hi transition-colors hover:border-white hover:text-white">
+          {busy > 0 ? <span className="flex flex-col items-center gap-1 text-[12px]"><Loader2 size={16} className="animate-spin" />{busy} left</span> : <span className="flex flex-col items-center gap-1 text-[12px]"><Upload size={16} />Add photos</span>}
+        </button>
+      </div>
+      <input ref={input} type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} onChange={(e) => { add(e.target.files); e.target.value = '' }} />
+      <div className="mt-2 flex items-center gap-2">
+        <Link2 size={14} className="shrink-0 text-mute" aria-hidden />
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…or paste an image URL" className="!h-9 !text-[13.5px]"
+          onKeyDown={(e) => { if (e.key === 'Enter' && url.trim()) { e.preventDefault(); onChange([...value, url.trim()]); setUrl('') } }} />
+        <button type="button" disabled={!url.trim()} onClick={() => { onChange([...value, url.trim()]); setUrl('') }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line-strong text-mute-hi hover:text-white disabled:opacity-30" aria-label="Add URL"><Plus size={15} /></button>
+      </div>
+    </Field>
+  )
+}
+
+/** Comma/line separated list ↔ string[] */
+export function ListField({ label, hint, value, onChange, rows = 3 }: { label: string; hint?: string; value: string[]; onChange: (v: string[]) => void; rows?: number }) {
+  const [text, setText] = useState(value.join('\n'))
+  return (
+    <Field label={label} hint={hint ?? 'One per line'}>
+      <Textarea rows={rows} value={text} onChange={(e) => { setText(e.target.value); onChange(e.target.value.split('\n').map((x) => x.trim()).filter(Boolean)) }} className="!min-h-0" />
+    </Field>
+  )
 }

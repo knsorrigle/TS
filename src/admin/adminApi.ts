@@ -4,7 +4,8 @@ import {
   isDemo, toTeam, fromTeam, type TeamMember, type TeamRow, toEvent, fromEvent, toAnnouncement, fromAnnouncement, toPastEvent, fromPastEvent, toRegistration,
   type TSEvent, type Announcement, type PastEvent, type Registration, type EventRow, type AnnouncementRow, type PastEventRow, type RegistrationRow,
 } from '../lib/api'
-import { demoEvents, demoAnnouncements, demoPastEvents, demoTeam } from '../lib/demo'
+import { demoEvents, demoAnnouncements, demoPastEvents, demoTeam, demoSite } from '../lib/demo'
+import { mergeContent, type SiteContent } from '../lib/content'
 
 export { isDemo }
 
@@ -220,6 +221,20 @@ export async function swapTeamOrder(a: TeamMember, b: TeamMember) {
   await saveTeam({ ...b, sortOrder: a.sortOrder }, b.id)
 }
 
+/* ───────── Site content ───────── */
+export async function loadSiteContent(): Promise<SiteContent> {
+  if (isDemo) return mergeContent(demoSite.value)
+  const { data, error } = await (await db()).from('techspark_settings').select('value').eq('key', 'site').maybeSingle()
+  if (error) throw new Error(error.message)
+  return mergeContent(data?.value ?? null)
+}
+export async function saveSiteContent(c: SiteContent) {
+  if (isDemo) { demoSite.value = structuredClone(c) as unknown as Record<string, unknown>; return done(undefined) }
+  const { error } = await (await db()).from('techspark_settings').upsert({ key: 'site', value: c, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+  done(undefined)
+}
+
 /* ───────── Registrations ───────── */
 const demoRegs: Registration[] = (() => {
   const names = ['Aditi Rao', 'Rahul Sharma', 'Kavya N', 'Mohammed Irfan', 'Sneha Gowda', 'Varun K', 'Priya Shetty', 'Arjun Hegde']
@@ -237,6 +252,21 @@ export async function listRegistrations(): Promise<Registration[]> {
   const { data, error } = await (await db()).from('techspark_registrations').select('*').order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return (data as RegistrationRow[]).map(toRegistration)
+}
+export async function addRegistration(r: Omit<Registration, 'id' | 'createdAt'>): Promise<void> {
+  if (isDemo) { demoRegs.unshift({ ...r, id: demoId(), createdAt: now() }); return done(undefined) }
+  const { error } = await (await db()).from('techspark_registrations').insert({
+    event_id: r.eventId, event_title: r.eventTitle, student_name: r.studentName.trim(), student_email: r.studentEmail.trim().toLowerCase(),
+    student_roll: r.studentRoll.trim().toUpperCase(), department: r.department, year: r.year, status: r.status,
+  })
+  if (error) throw new Error(error.code === '23505' ? 'That student (roll or email) is already registered for this event.' : error.message)
+  done(undefined)
+}
+export async function setRegistrationStatus(id: string, status: 'Confirmed' | 'Waitlisted') {
+  if (isDemo) { const r = demoRegs.find((x) => x.id === id); if (r) r.status = status; return done(undefined) }
+  const { error } = await (await db()).from('techspark_registrations').update({ status }).eq('id', id)
+  if (error) throw new Error(error.message)
+  done(undefined)
 }
 export async function deleteRegistration(id: string) {
   if (isDemo) { demoRegs.splice(demoRegs.findIndex((r) => r.id === id), 1); return done(undefined) }
