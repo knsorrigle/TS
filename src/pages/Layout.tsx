@@ -5,7 +5,7 @@ import { Grain } from '../components/Grain'
 import { Toaster } from '../components/Toaster'
 import { RegisterModal } from '../components/RegisterModal'
 import { SparkLayer } from '../components/SparkLayer'
-import { ScrollTrigger, scrollToTarget, startSmoothScroll, stopSmoothScroll } from '../lib/motion'
+import { ScrollTrigger, scrollToTarget, startSmoothScroll, stopSmoothScroll, watchLayoutChanges } from '../lib/motion'
 import { markIntroDone } from '../lib/intro'
 
 export function Layout() {
@@ -18,6 +18,9 @@ export function Layout() {
     startSmoothScroll()
     return () => stopSmoothScroll()
   }, [isAdmin])
+
+  // re-measure scroll animations whenever the page really changes size (fonts, data, unlock)
+  useEffect(() => watchLayoutChanges(), [])
 
   // only the home hero runs the ignition; every other route reveals the chrome immediately
   useEffect(() => { if (pathname !== '/') markIntroDone() }, [pathname])

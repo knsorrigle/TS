@@ -68,6 +68,40 @@ export function scrollToTarget(target: string | HTMLElement, opts: { offset?: nu
 export function lockScroll(locked: boolean) {
   if (lenis) locked ? lenis.stop() : lenis.start()
   document.documentElement.style.overflow = locked ? 'hidden' : ''
+  if (!locked) requestRefresh() // the scrollbar came back: layout width changed
+}
+
+/**
+ * Keep every ScrollTrigger honest. Positions are measured once at creation; on a first visit the page keeps
+ * changing height afterwards (web fonts swap in, Supabase sections arrive, the intro unlocks scrolling),
+ * which leaves reveals and the lit words waiting at the wrong scroll positions. Re-measure, debounced,
+ * whenever the document actually changes size, and once fonts and the window have finished loading.
+ */
+let refreshTimer = 0
+export function requestRefresh(delay = 120) {
+  if (typeof window === 'undefined') return
+  clearTimeout(refreshTimer)
+  refreshTimer = window.setTimeout(() => ScrollTrigger.refresh(), delay)
+}
+
+export function watchLayoutChanges() {
+  if (typeof window === 'undefined') return () => {}
+  let lastH = document.documentElement.scrollHeight
+  let lastW = document.documentElement.clientWidth
+  const ro = new ResizeObserver(() => {
+    const h = document.documentElement.scrollHeight
+    const w = document.documentElement.clientWidth
+    // ignore sub-pixel jitter and the changes ScrollTrigger's own pin spacers make during a refresh
+    if (Math.abs(h - lastH) < 4 && w === lastW) return
+    lastH = h; lastW = w
+    requestRefresh(180)
+  })
+  ro.observe(document.body)
+  const onLoad = () => requestRefresh(0)
+  addEventListener('load', onLoad)
+  document.fonts?.ready.then(() => requestRefresh(0)).catch(() => {})
+  document.fonts?.addEventListener?.('loadingdone', onLoad)
+  return () => { ro.disconnect(); removeEventListener('load', onLoad); document.fonts?.removeEventListener?.('loadingdone', onLoad); clearTimeout(refreshTimer) }
 }
 
 export { gsap, ScrollTrigger }
