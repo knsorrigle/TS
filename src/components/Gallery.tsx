@@ -39,7 +39,7 @@ export function Lightbox({ images, start, title, onClose }: { images: string[]; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${title} — photos`} className="fixed inset-0 z-[160] flex items-center justify-center bg-black/95"
+    <div data-lenis-prevent role="dialog" aria-modal="true" aria-label={`${title} — photos`} className="fixed inset-0 z-[160] flex items-center justify-center bg-black/95"
       onTouchStart={(e) => { touch.current = e.touches[0].clientX }}
       onTouchEnd={(e) => { if (touch.current === null) return; const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 40) (dx > 0 ? prev() : next()); touch.current = null }}>
       <Stage key={images[i]} m={parseMedia(images[i])} alt={`${title} — ${i + 1} of ${images.length}`} />

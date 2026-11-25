@@ -11,10 +11,13 @@ import { markIntroDone } from '../lib/intro'
 export function Layout() {
   const { pathname, hash } = useLocation()
 
+  // Smooth scroll is for the story pages; admin is a working tool and scrolls natively (so its panels scroll too).
+  const isAdmin = pathname.startsWith('/admin')
   useEffect(() => {
+    if (isAdmin) return
     startSmoothScroll()
     return () => stopSmoothScroll()
-  }, [])
+  }, [isAdmin])
 
   // only the home hero runs the ignition; every other route reveals the chrome immediately
   useEffect(() => { if (pathname !== '/') markIntroDone() }, [pathname])

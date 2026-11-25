@@ -17,7 +17,7 @@ export function SchemaTab() {
         <li><span className="t-num mr-2 font-[650] text-spark">2</span>Create your account under <b>Authentication → Users</b>, then run the admin insert at the top of the file with your email.</li>
         <li><span className="t-num mr-2 font-[650] text-spark">3</span>Put the project URL and anon key in <code className="text-spark">.env.local</code> (and in Vercel env vars), then redeploy.</li>
       </ol>
-      <pre className="max-h-[60vh] overflow-auto px-5 py-5 font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[12.5px] leading-relaxed text-frost/80"><code>{schema}</code></pre>
+      <pre data-lenis-prevent className="max-h-[60vh] overflow-auto px-5 py-5 font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[12.5px] leading-relaxed text-frost/80"><code>{schema}</code></pre>
     </Panel>
   )
 }

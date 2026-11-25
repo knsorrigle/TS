@@ -163,7 +163,7 @@ function Sheet({ event }: { event: TSEvent }) {
           </button>
         </header>
 
-        <div className="overflow-y-auto overscroll-contain px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 sm:px-8 sm:pb-8">
+        <div data-lenis-prevent className="overflow-y-auto overscroll-contain px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 sm:px-8 sm:pb-8">
           {(phase.kind === 'form' || phase.kind === 'submitting') && (
             <form noValidate onSubmit={submit} className="space-y-3">
               <TextField ref={firstInput} name="name" label="Full name" placeholder="e.g. Rahul Sharma" autoComplete="name" value={values.name} onChange={update('name')} onBlur={blur('name')} error={show('name')} ok={!errors.name} disabled={busy} />

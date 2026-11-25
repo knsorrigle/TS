@@ -161,6 +161,7 @@ export function Nav() {
 
       <div
         id="mobile-menu"
+        data-lenis-prevent
         ref={overlay}
         role="dialog"
         aria-modal="true"

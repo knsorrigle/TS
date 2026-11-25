@@ -7,9 +7,9 @@ import { toast } from '../lib/toast'
 export function Field({ label, hint, error, children, className = '' }: { label: string; hint?: string; error?: string; children: ReactNode; className?: string }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1.5 flex items-baseline justify-between gap-3">
+      <span className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <span className="text-[12px] font-[600] uppercase tracking-[0.06em] text-mute-hi">{label}</span>
-        {hint && !error && <span className="text-[12px] text-mute">{hint}</span>}
+        {hint && !error && <span className="text-right text-[12px] text-mute max-sm:text-left">{hint}</span>}
         {error && <span className="text-[12px] text-ember">{error}</span>}
       </span>
       {children}
@@ -63,7 +63,7 @@ export function Drawer({ title, open, onClose, children, footer, busy }: { title
           <h2 className="t-h2 text-[20px] text-frost">{title}</h2>
           <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full text-mute-hi hover:bg-white/5 hover:text-frost disabled:opacity-30"><X size={16} /></button>
         </header>
-        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">{children}</div>
+        <div data-lenis-prevent className="flex-1 space-y-5 overflow-y-auto overscroll-contain px-6 py-6">{children}</div>
         <footer className="flex items-center justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
       </div>
     </div>
