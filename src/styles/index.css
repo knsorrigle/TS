@@ -54,7 +54,7 @@
 :root {
   --nav-h: 72px;
   --gutter: clamp(16px, 4vw, 48px);
-  --section-pad: clamp(96px, 16vh, 200px);
+  --section-pad: clamp(72px, 11vh, 140px);
   color-scheme: dark;
 }
 
@@ -138,9 +138,9 @@
     line-height: 0.84;
   }
   .t-body {
-    font-size: clamp(15px, 1.05vw, 16.5px);
-    line-height: 1.62;
-    color: var(--color-mute);
+    font-size: clamp(16px, 1.18vw, 18px);
+    line-height: 1.6;
+    color: #9aa3b2;
     letter-spacing: -0.005em;
   }
   /* hairline separator glyph used in labels:  02 │ ABOUT */
@@ -283,10 +283,11 @@
 /* image-less event frame */
 .duo-empty {
   background:
-    radial-gradient(60% 80% at var(--lg-x) var(--lg-y), var(--duo-b) 0%, transparent 70%),
-    radial-gradient(70% 90% at var(--lg-x2) 80%, var(--duo-a) 0%, transparent 72%),
-    #050a16;
-  animation: lg-drift 18s linear infinite;
+    radial-gradient(45% 60% at var(--lg-x) var(--lg-y), rgb(232 241 255 / 0.55) 0%, transparent 60%),
+    radial-gradient(65% 85% at var(--lg-x) var(--lg-y), var(--duo-b) 0%, transparent 72%),
+    radial-gradient(75% 95% at var(--lg-x2) 85%, var(--duo-a) 0%, transparent 74%),
+    #03060d;
+  animation: lg-drift 22s linear infinite;
 }
 .duo-empty::after, .duo::after, .living::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;

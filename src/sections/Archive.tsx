@@ -1,16 +1,19 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Users, RotateCw } from 'lucide-react'
 import { fetchPastEvents, type PastEvent } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
+import { useContent } from '../lib/content'
 import { gsap, getLenis } from '../lib/motion'
 import { useDesktop, useReducedMotion } from '../lib/useMedia'
 import { CATEGORY_META, categoryKey } from '../lib/site'
 import { Duotone } from '../components/Duotone'
+import { Lightbox } from '../components/Gallery'
 import { Skeleton } from '../components/Skeleton'
 import { StateCard } from './Events'
 
 export function Archive() {
+  const c = useContent()
   const root = useRef<HTMLElement>(null)
   const list = useAsync('past', fetchPastEvents)
   const desktop = useDesktop()
@@ -19,10 +22,10 @@ export function Archive() {
   useReveals(root, [list.status])
 
   return (
-    <section ref={root} id="archive" aria-labelledby="archive-title" data-spark="-0.42 0.12 0.55 2.0" className="relative bg-void">
+    <section ref={root} id="archive" aria-labelledby="archive-title" data-spark="-0.45 0.2 0.4 2.0" className="relative bg-void">
       <div className="mx-auto max-w-[1440px] px-[var(--gutter)] pt-[var(--section-pad)]">
-        <h2 id="archive-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">Archive</h2>
-        <p className="t-body above-spark mt-4 max-w-[52ch]" data-reveal="lines" data-delay="0.1">Past events & achievements — student collaboration sessions held across previous campus semesters.</p>
+        <h2 id="archive-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">{c.sections.archive}</h2>
+        <p className="t-body above-spark mt-4 max-w-[52ch]" data-reveal="lines" data-delay="0.1">{c.sections.archiveSub}</p>
       </div>
 
       <div className={pinned ? '' : 'px-[var(--gutter)] pb-[var(--section-pad)] pt-12'}>
@@ -44,6 +47,8 @@ export function Archive() {
 }
 
 function Frame({ p, i }: { p: PastEvent; i: number }) {
+  const [view, setView] = useState(false)
+  const photos = [p.image, ...p.gallery].filter(Boolean)
   const meta = CATEGORY_META[categoryKey(p.category)]
   const d = p.date ? new Date(`${p.date}T00:00:00`) : null
   const when = d ? d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : ''
@@ -52,6 +57,10 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
       <p className="t-meta mb-3 flex justify-between"><span>{when}</span><span>{meta.short}</span></p>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[28px]">
         <Duotone src={p.image} alt={p.title} category={p.category} className="absolute inset-0" blank={<span className="t-serif absolute bottom-5 left-6 text-[clamp(72px,8vw,120px)] leading-none text-white/90">{String(i + 1).padStart(2, '0')}</span>} />
+        {photos.length > 0 && (
+          <button type="button" onClick={() => setView(true)} className="absolute inset-0 z-[5]" aria-label={`View ${photos.length} photo${photos.length === 1 ? '' : 's'} from ${p.title}`} />
+        )}
+        {photos.length > 1 && <span className="t-num absolute right-3 top-3 z-10 rounded-full bg-black/60 px-3 py-1.5 text-[12px] text-white backdrop-blur">{photos.length} photos</span>}
         {p.participants > 0 && (
           <span className="t-num absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-void/65 px-3 py-1.5 text-[12px] font-[600] text-frost backdrop-blur">
             <Users size={13} aria-hidden /> {p.participants} participants
@@ -61,6 +70,8 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
       <h3 className="t-h1 mt-5 text-[clamp(30px,2.6vw,40px)]">{p.title}</h3>
       <p className="t-body mt-2">{p.description}</p>
       {p.highlight && <p className="mt-3 text-[14.5px] text-spark">{p.highlight}</p>}
+      {p.linkUrl && <a href={p.linkUrl} target="_blank" rel="noopener noreferrer" className="link-u mt-3 self-start text-[14px]">Results & photos <span aria-hidden>↗</span></a>}
+      {view && <Lightbox images={photos} start={0} title={p.title} onClose={() => setView(false)} />}
     </article>
   )
 }

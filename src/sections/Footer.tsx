@@ -1,17 +1,19 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
 import { ArrowUp } from 'lucide-react'
-import { CLUB_GITHUB_URL, SITE } from '../lib/site'
+import { useContent } from '../lib/content'
 import { copyText } from '../lib/calendar'
 import { getLenis, reducedMotion, whenLenis } from '../lib/motion'
 import { flareSpark } from '../three/sparkState'
 
 export function Footer({ loop = false }: { loop?: boolean }) {
+  const c = useContent()
+  const SITE = { ...c.contact }
   const top = () => { const l = getLenis(); l ? l.scrollTo(0, { duration: 2 }) : scrollTo({ top: 0, behavior: 'smooth' }) }
   const [user, domain] = SITE.email.split('@')
   return (
     <>
-      <footer id="contact" data-spark="-0.36 0.12 0.7 3.0" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-10 pt-[clamp(96px,16vh,200px)]">
+      <footer id="contact" data-spark="0.4 -0.1 0.55 3.0" className="relative overflow-hidden bg-void px-[var(--gutter)] pb-10 pt-[clamp(96px,16vh,200px)]">
         <div className="mx-auto max-w-[1440px]">
           <p className="t-label">Say hello</p>
           <button
@@ -29,7 +31,7 @@ export function Footer({ loop = false }: { loop?: boolean }) {
               <p className="t-label">Follow us</p>
               <ul className="mt-3 space-y-1.5 text-[15px]">
                 <li><a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="link-u">Instagram <span className="sr-only">(opens in a new tab)</span></a></li>
-                {CLUB_GITHUB_URL && <li><a href={CLUB_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="link-u">GitHub</a></li>}
+                {SITE.github && <li><a href={SITE.github} target="_blank" rel="noopener noreferrer" className="link-u">GitHub</a></li>}
                 <li><a href={`mailto:${SITE.email}`} className="link-u">Email</a></li>
               </ul>
             </div>

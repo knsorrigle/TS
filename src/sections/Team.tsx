@@ -2,18 +2,20 @@ import { useRef } from 'react'
 import { fetchTeam, type TeamMember } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
+import { useContent } from '../lib/content'
 
 /** Redis team row: round avatars; on hover the photo swaps to the fun one. Renders nothing until real members exist. */
 export function Team() {
+  const c = useContent()
   const root = useRef<HTMLElement>(null)
   const team = useAsync('team', fetchTeam)
   useReveals(root, [team.status])
   if (team.status !== 'success' || team.data.length === 0) return null
   return (
-    <section ref={root} id="team" aria-labelledby="team-title" data-spark="0.42 0.05 0.6 2.2" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
+    <section ref={root} id="team" aria-labelledby="team-title" data-spark="0.45 0.1 0.45 2.2" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1440px] text-center">
-        <h2 id="team-title" className="t-h1 above-spark text-[clamp(64px,10vw,170px)]" data-reveal="lines">The people</h2>
-        <p className="t-body mx-auto mt-4 max-w-[44ch]" data-reveal="up">Students who plan, build and host every TECHSPARK session.</p>
+        <h2 id="team-title" className="t-h1 above-spark text-[clamp(64px,10vw,170px)]" data-reveal="lines">{c.sections.team}</h2>
+        <p className="t-body mx-auto mt-4 max-w-[44ch]" data-reveal="up">{c.sections.teamSub}</p>
         <ul className="no-scrollbar -mx-[var(--gutter)] mt-16 flex snap-x gap-[clamp(16px,2.4vw,36px)] overflow-x-auto px-[var(--gutter)] pb-4 md:flex-wrap md:justify-center md:overflow-visible">
           {team.data.map((m) => <Member key={m.id} m={m} />)}
         </ul>

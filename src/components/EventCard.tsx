@@ -49,6 +49,13 @@ export function RegisterButton({ e, size = 'sm', full }: { e: TSEvent; size?: 's
       </span>
     )
   }
+  if (s.canRegister && e.registrationMode === 'external') {
+    return (
+      <a href={e.registrationUrl} target="_blank" rel="noopener noreferrer" className={`pill pill--solid ${size === 'sm' ? 'pill--sm' : ''} ${full ? 'w-full' : ''}`}>
+        Register <span aria-hidden>↗</span><span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    )
+  }
   return (
     <button
       type="button"
@@ -99,6 +106,9 @@ export function RegisterLink({ e }: { e: TSEvent }) {
   const s = seatState(e)
   if (reg) return <span className="text-[14.5px] text-mute-hi">{reg.status === 'Waitlisted' ? 'You’re on the waitlist' : 'You’re registered'}</span>
   if (!s.canRegister) return null
+  if (e.registrationMode === 'external') {
+    return <a href={e.registrationUrl} target="_blank" rel="noopener noreferrer" className="link-u text-[14.5px] font-[500]">Register <span aria-hidden>↗</span><span className="sr-only"> (opens in a new tab)</span></a>
+  }
   return (
     <button type="button" onClick={(ev) => { ev.preventDefault(); openRegister(e) }} className="link-u text-[14.5px] font-[500]">
       {s.tone === 'waitlist' ? 'Join the waitlist' : 'Register'} <span aria-hidden>→</span>

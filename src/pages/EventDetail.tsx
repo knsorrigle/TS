@@ -14,6 +14,7 @@ import { Skeleton } from '../components/Skeleton'
 import { StateCard } from '../sections/Events'
 import { Footer } from '../sections/Footer'
 import { NotFound } from './NotFound'
+import { Gallery } from '../components/Gallery'
 
 export function EventDetail() {
   const { slug = '' } = useParams()
@@ -65,13 +66,14 @@ export function EventDetail() {
               <p className="max-w-[40ch] text-[clamp(19px,1.7vw,24px)] leading-[1.45] text-frost/90" data-reveal="lines">{e.description}</p>
               <div className="t-body mt-10 max-w-[64ch] space-y-5 whitespace-pre-line text-[16.5px]" data-reveal="up">{e.fullDescription}</div>
               {e.tags.length > 0 && <p className="mt-10 text-[14px] text-mute-hi" data-reveal="up">{e.tags.map((t) => `#${t}`).join('   ')}</p>}
+              {e.gallery.length > 0 && <Gallery images={e.gallery} title={e.title} />}
             </div>
 
             <aside className="lg:sticky lg:top-[calc(var(--nav-h)+24px)] lg:self-start" aria-label="Registration">
               <div className="border border-line bg-ink p-6 sm:p-7">
                 <dl className="space-y-4 text-[15px]">
                   <div className="flex gap-3"><dt className="sr-only">Date and time</dt><Clock size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden />
-                    <dd className="text-frost">{start ? start.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Date TBA'}{e.time ? ` · ${e.time}` : ''}</dd></div>
+                    <dd className="text-frost">{start ? start.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Date TBA'}{e.time ? ` · ${e.time}` : ''}{e.endTime ? ` – ${e.endTime}` : ''}</dd></div>
                   {e.location && <div className="flex gap-3"><dt className="sr-only">Venue</dt><MapPin size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">{e.location}</dd></div>}
                   {e.speaker && <div className="flex gap-3"><dt className="sr-only">Speaker</dt><Mic2 size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">{e.speaker}</dd></div>}
                 </dl>
@@ -79,6 +81,9 @@ export function EventDetail() {
                   <p className="mt-6 border-t border-line pt-5"><span className="t-meta block">Starts in</span><span className="t-num mt-1 block text-[26px] font-[500] tracking-[-0.02em] text-white">{formatCountdown(ms)}</span></p>
                 )}
                 <div className="mt-6 border-t border-line pt-5"><SeatLine e={e} /></div>
+                {e.registrationDeadline && new Date(e.registrationDeadline).getTime() > Date.now() && (
+                  <p className="mt-3 text-[13.5px] text-mute-hi">Registrations close {new Date(e.registrationDeadline).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                )}
                 <div className="mt-6"><RegisterButton e={e} size="md" full /></div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a href={googleCalendarUrl(e)} target="_blank" rel="noopener noreferrer" className="pill pill--sm"><CalendarPlus size={14} /> Calendar</a>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useContent } from '../lib/content'
 import { useNextEvent } from '../lib/useEvents'
 import { scrollToTarget } from '../lib/motion'
 import { formatDateShort } from '../lib/time'
@@ -26,6 +27,7 @@ function Barcode({ seed, className = '' }: { seed: string; className?: string })
 /** The hero's micro-detail: an event-ticket stub. Tap → the next event's registration. */
 export function TicketStub() {
   const next = useNextEvent()
+  const c = useContent()
   const go = () => scrollToTarget('events', { offset: -40 })
   return (
     <button
@@ -35,7 +37,7 @@ export function TicketStub() {
       aria-label="See upcoming events"
     >
       <span className="flex flex-col justify-between px-3.5 py-2.5">
-        <span className="text-[12.5px] font-[550]">TS—2026 · Navkis · CSE</span>
+        <span className="text-[12.5px] font-[550]">{c.hero.ticket}</span>
         <span className="t-num mt-1 text-[11.5px] text-mute-hi">
           {next ? <>Admit one · {formatDateShort(next.date)}</> : 'Admit one · Campus events'}
         </span>

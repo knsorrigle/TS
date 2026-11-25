@@ -4,6 +4,7 @@ import { Search, X, RotateCw } from 'lucide-react'
 import { fetchEvents, isDemo, type TSEvent } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
+import { useContent } from '../lib/content'
 import { CATEGORY_META, categoryKey, type CategoryKey } from '../lib/site'
 import { eventStart, formatDateShort } from '../lib/time'
 import { isUpcoming, seatState } from '../lib/status'
@@ -27,6 +28,7 @@ function sortEvents(list: TSEvent[]) {
 }
 
 export function Events() {
+  const c = useContent()
   const root = useRef<HTMLElement>(null)
   const events = useAsync('events', fetchEvents)
   const [params, setParams] = useSearchParams()
@@ -40,7 +42,8 @@ export function Events() {
     setParams(next, { replace: true, preventScrollReset: true })
   }
 
-  const sorted = useMemo(() => (events.status === 'success' ? sortEvents(events.data) : []), [events.status, events.data])
+  // upcoming only — finished events belong in the archive
+  const sorted = useMemo(() => (events.status === 'success' ? sortEvents(events.data).filter((e) => isUpcoming(e)) : []), [events.status, events.data])
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return sorted.filter((e) => {
@@ -53,10 +56,10 @@ export function Events() {
   useReveals(root, [events.status, filtered.length, cat])
 
   return (
-    <section ref={root} id="events" aria-labelledby="events-title" data-spark="-0.4 0.05 0.65 1.3" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
+    <section ref={root} id="events" aria-labelledby="events-title" data-spark="-0.45 0.1 0.45 1.3" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
-          <h2 id="events-title" className="t-h1 above-spark text-[clamp(72px,13vw,220px)]" data-reveal="lines">Events</h2>
+          <h2 id="events-title" className="t-h1 above-spark text-[clamp(72px,13vw,220px)]" data-reveal="lines">{c.sections.events}</h2>
           <p className="t-meta pb-4" aria-live="polite">
             {isDemo && <span className="mr-3 text-amber">Demo data · dev only</span>}
             {events.status === 'success'
@@ -93,15 +96,15 @@ export function Events() {
               action={<button type="button" onClick={events.reload} className="pill pill--sm"><RotateCw size={13} /> Try again</button>} />
           )}
           {events.status === 'success' && sorted.length === 0 && (
-            <StateCard title="No events live right now." body="Something’s sparking — check back soon." spark />
+            <StateCard title={c.sections.eventsEmpty} body="Something’s sparking — check back soon." spark />
           )}
           {events.status === 'success' && sorted.length > 0 && filtered.length === 0 && (
             <StateCard title="Nothing matches that." body={`No sessions for “${q || FILTERS.find((f) => f.key === cat)?.label}”. Try another word or category.`}
               action={<button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="pill pill--sm">Clear filters</button>} />
           )}
           {events.status === 'success' && filtered.length > 0 && (
-            <ol className="mx-auto flex max-w-[1080px] flex-col gap-[clamp(72px,12vh,140px)]">
-              {filtered.map((e, i) => <Case key={e.id} e={e} first={i === 0 && !q && cat === 'all'} />)}
+            <ol className="mx-auto grid max-w-[1240px] gap-x-[clamp(20px,3vw,48px)] gap-y-[clamp(56px,8vh,96px)] md:grid-cols-2">
+              {filtered.map((e, i) => <Case key={e.id} e={e} first={i === 0} featured={i === 0 && filtered.length > 1} />)}
             </ol>
           )}
         </div>
@@ -111,7 +114,7 @@ export function Events() {
 }
 
 /** Redis "case": a big rounded image card, then centred title + one line below. */
-function Case({ e, first }: { e: TSEvent; first: boolean }) {
+function Case({ e, first, featured }: { e: TSEvent; first: boolean; featured: boolean }) {
   const meta = CATEGORY_META[categoryKey(e.category)]
   const s = seatState(e)
   const lean = (el: HTMLElement | null) => {
@@ -120,7 +123,7 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
     leanSpark({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
   }
   return (
-    <li className="group" data-reveal="up">
+    <li className={`group ${featured ? 'md:col-span-2' : ''}`} data-reveal="up">
       <Link
         to={`/events/${e.slug}`}
         viewTransition
@@ -128,17 +131,17 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
         onPointerLeave={() => lean(null)}
         onFocus={(ev) => lean(ev.currentTarget)}
         onBlur={() => lean(null)}
-        className="relative block aspect-[16/10] overflow-hidden rounded-[clamp(20px,2.4vw,36px)] outline-offset-4 sm:aspect-[16/9]"
+        className={`relative block overflow-hidden rounded-[clamp(20px,2.4vw,36px)] outline-offset-4 ${featured ? 'aspect-[16/10] sm:aspect-[21/9]' : 'aspect-[16/11]'}`}
         aria-label={`${e.title} — details`}
       >
-        <Duotone src={e.image} alt={e.title} category={e.category} eager={first} className="absolute inset-0 transition-transform duration-[1400ms] ease-[var(--ease-expo)] group-hover:scale-[1.03]" blank={<EventBlank e={e} />} />
+        <Duotone src={e.image} alt={e.title} category={e.category} eager={first} className="absolute inset-0 transition-transform duration-[1400ms] ease-[var(--ease-expo)] group-hover:scale-[1.03]" blank={<EventBlank e={e} big={featured} />} />
         <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2 sm:left-6 sm:top-6">
-          {first && e.featured && <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-[650] uppercase tracking-[0.06em] text-black">Featured</span>}
+          {featured && e.featured && <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-[650] uppercase tracking-[0.06em] text-black">Featured</span>}
           <Soon e={e} />
         </div>
       </Link>
-      <div className="above-spark mt-7 text-center">
-        <h3 className="t-h1 mx-auto max-w-[18ch] text-[clamp(34px,4.2vw,64px)]" style={{ viewTransitionName: `title-${e.slug}` }}>
+      <div className={`above-spark text-center ${featured ? 'mt-7' : 'mt-5'}`}>
+        <h3 className={`t-h1 mx-auto max-w-[18ch] ${featured ? 'text-[clamp(36px,4.6vw,72px)]' : 'text-[clamp(30px,2.8vw,44px)]'}`} style={{ viewTransitionName: `title-${e.slug}` }}>
           <Link to={`/events/${e.slug}`} viewTransition className="transition-opacity hover:opacity-80">{e.title}</Link>
         </h3>
         <p className="t-num mx-auto mt-3 max-w-[70ch] text-[14.5px] text-mute-hi">
@@ -153,15 +156,15 @@ function Case({ e, first }: { e: TSEvent; first: boolean }) {
 }
 
 /** No photo yet: an editorial frame — the date set large in the serif, nothing pretending to be an image. */
-function EventBlank({ e }: { e: TSEvent }) {
+function EventBlank({ e, big }: { e: TSEvent; big: boolean }) {
   const [d, m] = formatDateShort(e.date).split(' ')
   const meta = CATEGORY_META[categoryKey(e.category)]
   return (
     <div className="absolute inset-0 flex flex-col justify-between p-[clamp(20px,3vw,40px)]">
-      <span className="text-[14px] text-mute-hi">{meta.label}</span>
+      <span className="text-[14px] text-white/85">{meta.label}</span>
       <div className="flex items-end justify-between gap-6">
-        <span className="t-serif text-[clamp(96px,16vw,240px)] leading-[0.8] text-white">{d}<span className="ml-3 text-[0.32em] text-mute-hi">{m?.charAt(0)}{m?.slice(1).toLowerCase()}</span></span>
-        <span className="mb-2 hidden max-w-[22ch] text-right text-[14px] leading-snug text-mute-hi sm:block">{[e.time, e.location].filter(Boolean).join(' · ')}</span>
+        <span className={`t-serif leading-[0.8] text-white ${big ? 'text-[clamp(96px,14vw,220px)]' : 'text-[clamp(80px,8.5vw,140px)]'}`}>{d}<span className="ml-3 text-[0.32em] text-white/75">{m?.charAt(0)}{m?.slice(1).toLowerCase()}</span></span>
+        <span className="mb-2 hidden max-w-[22ch] text-right text-[14px] leading-snug text-white/80 sm:block">{[e.time, e.location].filter(Boolean).join(' · ')}</span>
       </div>
     </div>
   )

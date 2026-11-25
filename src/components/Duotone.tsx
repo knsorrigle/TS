@@ -14,13 +14,11 @@ export function Duotone({ src, alt, category, className = '', label, eager, blan
   const meta = CATEGORY_META[categoryKey(category)]
   const style = { '--duo-a': meta.from, '--duo-b': meta.to, '--duo-glow': meta.glow } as React.CSSProperties
 
-  if ((!src || failed) && blank) {
-    return <div className={`duo-blank overflow-hidden ${className}`}>{blank}</div>
-  }
   if (!src || failed) {
     return (
-      <div className={`duo-empty overflow-hidden ${className}`} style={style} aria-hidden={!label}>
+      <div className={`duo-empty overflow-hidden ${className}`} style={style} aria-hidden={!label && !blank}>
         <span className="duo-empty__blob" />
+        {blank && <div className="absolute inset-0 z-[2]">{blank}</div>}
         {label && <span className="t-poster absolute bottom-3 left-4 right-4 z-[2] text-[clamp(22px,3vw,34px)] text-frost/85">{label}</span>}
       </div>
     )

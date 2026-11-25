@@ -1,20 +1,22 @@
 import { useRef } from 'react'
 import { useReveals } from '../lib/reveal'
+import { useContent } from '../lib/content'
 
-const WORDS = ['Hackathons', 'Workshops', 'Tech Talks', 'Quizzes', 'Design Showcases', 'Trivia', 'Mixers', 'Coding Competitions', 'Presentation Jams', 'Team Challenges']
 
 /** Centred serif statement (Redis's "ultimate design partner" moment) + an endless keyword strip. */
 export function Statement() {
+  const c = useContent()
+  const WORDS = c.statement.marquee
   const root = useRef<HTMLElement>(null)
-  useReveals(root)
+  useReveals(root, [c.statement.heading])
   return (
-    <section ref={root} id="about" aria-labelledby="about-title" data-spark="-0.38 -0.05 0.75 0.6" className="relative overflow-hidden bg-void py-[var(--section-pad)]">
+    <section ref={root} id="about" aria-labelledby="about-title" data-spark="-0.44 0.05 0.5 0.6" className="relative overflow-hidden bg-void py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1280px] px-[var(--gutter)] text-center">
         <h2 id="about-title" className="t-h1 above-spark mx-auto max-w-[15ch] text-[clamp(48px,8.4vw,148px)]" data-reveal="lines">
-          Bringing students together through campus events.
+          {c.statement.heading}
         </h2>
         <p className="t-body above-spark mx-auto mt-10 max-w-[58ch] text-[clamp(16px,1.3vw,19px)] text-frost/75" data-reveal="lines" data-delay="0.1">
-          TECHSPARK is a student-led college club dedicated to bringing students together through engaging campus events. We create opportunities for students of all backgrounds to participate, collaborate, and explore new interests—spanning hands-on technical activities, creative non-technical challenges, and lively social events.
+          {c.statement.body}
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useContent } from '../lib/content'
 import { createPortal } from 'react-dom'
 import { createHero, type HeroGL } from '../gl/createHero'
 import { gsap, lockScroll, reducedMotion, scrollToTarget } from '../lib/motion'
@@ -7,6 +8,7 @@ import { TicketStub } from '../components/TicketStub'
 
 
 export function Hero() {
+  const c = useContent()
   const section = useRef<HTMLElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const content = useRef<HTMLDivElement>(null)
@@ -113,7 +115,7 @@ export function Hero() {
     <section
       ref={section}
       id="top"
-      aria-label="TECHSPARK — Inspire. Innovate. Integrate."
+      aria-label={`TECHSPARK — ${c.hero.tagline}`}
       data-spark="0 0 1.25 0"
       className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-void"
     >
@@ -135,15 +137,13 @@ export function Hero() {
 
         {/* bottom-right: tagline */}
         <div data-hero-chrome className="above-spark absolute bottom-6 right-[var(--gutter)] hidden max-w-[300px] text-right md:block">
-          <p className="overflow-hidden"><span data-line className="block text-[12.5px] font-[650] uppercase tracking-[0.12em] text-white">
-            Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span>
-          </span></p>
-          <p className="mt-2 overflow-hidden"><span data-line className="block text-[14px] leading-snug text-mute-hi">A student-led college club hosting technical, non-technical, and fun events.</span></p>
+          <p className="overflow-hidden"><span data-line className="block text-[12.5px] font-[650] uppercase tracking-[0.12em] text-white"><Tagline text={c.hero.tagline} /></span></p>
+          <p className="mt-2 overflow-hidden"><span data-line className="block text-[14px] leading-snug text-mute-hi">{c.hero.description}</span></p>
         </div>
 
         {/* mobile tagline */}
         <p data-hero-chrome className="absolute inset-x-0 top-[calc(var(--nav-h)+20px)] overflow-hidden text-center md:hidden">
-          <span data-line className="block text-[11.5px] font-[650] uppercase tracking-[0.12em] text-white">Inspire<span className="text-spark">.</span> Innovate<span className="text-spark">.</span> Integrate<span className="text-spark">.</span></span>
+          <span data-line className="block text-[11.5px] font-[650] uppercase tracking-[0.12em] text-white"><Tagline text={c.hero.tagline} /></span>
         </p>
 
         {/* scroll cue */}
@@ -157,6 +157,11 @@ export function Hero() {
       {layered && createPortal(<div ref={title} className="hero-title-layer"><Title layered /></div>, document.body)}
     </section>
   )
+}
+
+/** Full stops in the tagline pick up the spark blue. */
+function Tagline({ text }: { text: string }) {
+  return <>{text.split(/(\.)/).map((part, i) => (part === '.' ? <span key={i} className="text-spark">.</span> : part))}</>
 }
 
 /** Tech / Spark: the seam of light runs between the lines; the crystal sits in it. */

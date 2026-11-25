@@ -4,19 +4,21 @@ import { Plus, RotateCw } from 'lucide-react'
 import { fetchAnnouncements, type Announcement } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
+import { useContent } from '../lib/content'
 import { formatDateShort } from '../lib/time'
 import { Skeleton } from '../components/Skeleton'
 import { StateCard } from './Events'
 
 export function Bulletins() {
+  const c = useContent()
   const root = useRef<HTMLElement>(null)
   const list = useAsync('announcements', fetchAnnouncements)
   useReveals(root, [list.status])
   return (
-    <section ref={root} id="announcements" aria-labelledby="bulletins-title" data-spark="0.42 -0.1 0.6 1.7" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
+    <section ref={root} id="announcements" aria-labelledby="bulletins-title" data-spark="0.45 -0.15 0.4 1.7" className="relative bg-void px-[var(--gutter)] py-[var(--section-pad)]">
       <div className="mx-auto max-w-[1440px]">
-        <h2 id="bulletins-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">Bulletins</h2>
-        <p className="t-body mt-4" data-reveal="up">Official updates and notices from the club.</p>
+        <h2 id="bulletins-title" className="t-h1 above-spark text-[clamp(72px,12vw,200px)]" data-reveal="lines">{c.sections.bulletins}</h2>
+        <p className="t-body mt-4" data-reveal="up">{c.sections.bulletinsSub}</p>
 
         <div className="mt-12">
           {list.status === 'loading' && (
@@ -78,6 +80,9 @@ function Row({ a }: { a: Announcement }) {
             <p className="t-body max-w-[68ch] whitespace-pre-line text-frost/80">{a.content || a.summary}</p>
             <div className="mt-5 flex flex-wrap items-center gap-4">
               {a.author && <span className="t-meta">— {a.author}</span>}
+              {a.linkUrl && (
+                <a href={a.linkUrl} target="_blank" rel="noopener noreferrer" className="pill pill--sm" tabIndex={open ? 0 : -1}>{a.linkLabel || 'Open link'} <span aria-hidden>↗</span></a>
+              )}
               {a.relatedEventSlug && (
                 <Link to={`/events/${a.relatedEventSlug}`} viewTransition className="pill pill--sm" tabIndex={open ? 0 : -1}>Related event <span aria-hidden>→</span></Link>
               )}
