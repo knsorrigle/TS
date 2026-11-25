@@ -68,23 +68,36 @@ export function RegisterModal() {
   return event ? <Sheet key={event.id} event={event} /> : null
 }
 
+/* A student mid-payment leaves for their UPI app; if the browser reloads the page meanwhile, this brings them back to the UTR box. */
+interface PayDraft { eventId: string; at: number; values: Values; teamName: string; mates: Mate[]; utr: string }
+const DRAFT = 'ts_pay_draft'
+function readDraft(eventId: string): PayDraft | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT) || 'null') as PayDraft | null
+    return d && d.eventId === eventId && Date.now() - d.at < 3 * 3600_000 ? d : null
+  } catch { return null }
+}
+const clearDraft = () => { try { localStorage.removeItem(DRAFT) } catch { /* ignore */ } }
+
 function Sheet({ event }: { event: TSEvent }) {
+  const [draft] = useState(() => (isPaid(event) ? readDraft(event.id) : null))
   const root = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const firstInput = useRef<HTMLInputElement>(null)
   const returnFocus = useRef<HTMLElement | null>(document.activeElement as HTMLElement)
   const [values, setValues] = useState<Values>(() => {
+    if (draft) return draft.values
     try { return { ...EMPTY, ...JSON.parse(localStorage.getItem('ts_last_student') || '{}') } } catch { return EMPTY }
   })
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
-  const [phase, setPhase] = useState<Phase>(() => (getLocalReg(event.id) ? { kind: 'duplicate' } : { kind: 'form' }))
+  const [phase, setPhase] = useState<Phase>(() => (getLocalReg(event.id) ? { kind: 'duplicate' } : draft ? { kind: 'pay', amount: event.entryFee } : { kind: 'form' }))
   const [serverError, setServerError] = useState('')
   const errors = useMemo(() => validate(values), [values])
   const { registration: opts } = useContent()
   const isTeam = event.registrationKind === 'team'
   const minMates = Math.max(0, event.teamMin - 1), maxMates = Math.max(minMates, event.teamMax - 1)
-  const [teamName, setTeamName] = useState('')
-  const [mates, setMates] = useState<Mate[]>(() => Array.from({ length: minMates }, () => ({ ...EMPTY_MATE })))
+  const [teamName, setTeamName] = useState(draft?.teamName ?? '')
+  const [mates, setMates] = useState<Mate[]>(() => draft?.mates ?? Array.from({ length: minMates }, () => ({ ...EMPTY_MATE })))
   const [mateTouched, setMateTouched] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const teamErrors = useMemo(() => (isTeam ? validateTeam(teamName, mates, values.roll) : { mates: [] as MateErrors[] }), [isTeam, teamName, mates, values.roll])
@@ -97,12 +110,20 @@ function Sheet({ event }: { event: TSEvent }) {
   const meta = CATEGORY_META[categoryKey(event.category)]
   const closing = useRef(false)
 
-  const [utr, setUtr] = useState('')
+  const [utr, setUtr] = useState(draft?.utr ?? '')
   const paid = isPaid(event)
+
+  useEffect(() => {
+    if (phase.kind !== 'pay') return
+    try { localStorage.setItem(DRAFT, JSON.stringify({ eventId: event.id, at: Date.now(), values, teamName, mates, utr } satisfies PayDraft)) } catch { /* ignore */ }
+  }, [phase.kind, event.id, values, teamName, mates, utr])
 
   const close = () => {
     if (closing.current || phase.kind === 'submitting' || phase.kind === 'paying') return
-    if (phase.kind === 'pay' && !confirm('Leave without finishing? If you already paid, stay and enter the UTR — your registration isn’t saved until you do.')) return
+    if (phase.kind === 'pay') {
+      if (!confirm('Leave without finishing? If you already paid, stay and enter the UTR — your registration isn’t saved until you do.')) return
+      clearDraft()
+    }
     closing.current = true
     const done = () => { closeRegister(); returnFocus.current?.focus?.({ preventScroll: true }) }
     if (reducedMotion()) return done()
@@ -172,6 +193,7 @@ function Sheet({ event }: { event: TSEvent }) {
       })
       if (res.success && res.status) {
         setLocalReg(event.id, { status: res.status, at: Date.now(), name: values.name.trim(), id: res.id })
+        clearDraft()
         try { localStorage.setItem('ts_last_student', JSON.stringify(values)) } catch { /* ignore */ }
         notifyDataUpdated()
         if (res.status === 'Confirmed') flareSpark(1)
@@ -182,7 +204,7 @@ function Sheet({ event }: { event: TSEvent }) {
       if (res.needs_payment) { setPhase({ kind: 'pay', amount: res.amount ?? event.entryFee }); return }
       const msg = res.error || res.message || 'Registration failed. Please try again.'
       if (/already registered/i.test(msg)) { setPhase({ kind: 'duplicate' }); return }
-      if (res.full) notifyDataUpdated()
+      if (res.full) { notifyDataUpdated(); clearDraft() }
       setServerError(msg)
       setPhase(res.full ? { kind: 'form' } : back)
     } catch (err) {
@@ -279,7 +301,7 @@ function Sheet({ event }: { event: TSEvent }) {
           )}
 
           {(phase.kind === 'pay' || phase.kind === 'paying') && (
-            <PayStep event={event} amount={phase.amount} who={isTeam ? teamName.trim() : values.name.trim()} isTeam={isTeam} utr={utr}
+            <PayStep event={event} amount={phase.amount} isTeam={isTeam} utr={utr}
               onUtr={(v) => { setUtr(v); setServerError('') }} error={serverError} busy={busy}
               onBack={() => { setServerError(''); setPhase({ kind: 'form' }) }} onSubmit={() => send(utr)} />
           )}
@@ -399,8 +421,8 @@ function Duplicate({ event, onClose, onAgain }: { event: TSEvent; onClose: () =>
 }
 
 /** Step two for paid events: the QR, the UPI ID, a one-tap UPI link on phones, and the UTR box. */
-function PayStep({ event, amount, who, isTeam, utr, onUtr, error, busy, onBack, onSubmit }: {
-  event: TSEvent; amount: number; who: string; isTeam: boolean; utr: string; onUtr: (v: string) => void
+function PayStep({ event, amount, isTeam, utr, onUtr, error, busy, onBack, onSubmit }: {
+  event: TSEvent; amount: number; isTeam: boolean; utr: string; onUtr: (v: string) => void
   error: string; busy: boolean; onBack: () => void; onSubmit: () => void
 }) {
   const [touched, setTouched] = useState(false)
@@ -408,13 +430,16 @@ function PayStep({ event, amount, who, isTeam, utr, onUtr, error, busy, onBack, 
   const bad = !UTR_RE.test(digits)
   const fieldErr = touched && bad ? (digits.length === 0 ? 'Paste the 12-digit UTR from your payment' : `A UTR is 12 digits — this has ${digits.length}`) : ''
   const phone = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
-  const note = `${event.title}${who ? ` - ${who}` : ''}`.slice(0, 60)
-  const upiLink = event.upiId
-    ? `upi://pay?${new URLSearchParams({ pa: event.upiId, ...(event.upiName ? { pn: event.upiName } : {}), am: amount.toFixed(2), cu: 'INR', tn: note }).toString().replace(/\+/g, '%20').replace(/%40/g, '@')}`
-    : ''
   const copy = async () => {
     try { await navigator.clipboard.writeText(event.upiId); toast.success('UPI ID copied') } catch { toast.error('Couldn’t copy — long-press the UPI ID instead') }
   }
+  const steps = phone
+    ? [
+        event.paymentQr ? 'Save the QR below (or long-press it → Download image).' : '',
+        `Open GPay, PhonePe or Paytm → ${event.paymentQr ? 'Scan → pick the QR from your gallery, or ' : ''}pay to the UPI ID. Amount ₹${amount}.`,
+        'Come back to this page and paste the 12-digit UTR.',
+      ].filter(Boolean)
+    : [`Scan the QR with any UPI app${event.upiId ? ', or pay to the UPI ID' : ''}. Amount ₹${amount}.`, 'Paste the 12-digit UTR from the payment below.']
   return (
     <form noValidate onSubmit={(e) => { e.preventDefault(); setTouched(true); if (!bad) onSubmit() }} className="space-y-4">
       <button type="button" onClick={onBack} disabled={busy} className="inline-flex items-center gap-1.5 text-[13.5px] text-mute-hi transition-colors hover:text-frost disabled:opacity-40">
@@ -428,27 +453,29 @@ function PayStep({ event, amount, who, isTeam, utr, onUtr, error, busy, onBack, 
         </div>
         <p className="mt-1.5 text-[13.5px] text-mute-hi">{isTeam ? 'One payment for the whole team.' : 'One payment per student.'} Your details are checked — your spot is saved once you enter the UTR.</p>
 
+        <ol className="mt-4 space-y-2 text-[14px] text-frost/90">
+          {steps.map((t, i) => (
+            <li key={i} className="flex gap-3"><span className="t-num grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/[0.07] text-[12px] text-frost">{i + 1}</span><span className="pt-0.5">{t}</span></li>
+          ))}
+        </ol>
+
         {event.paymentQr && (
           <div className="mt-4 flex flex-col items-center">
             <img src={event.paymentQr} alt={`UPI QR code to pay ₹${amount}${event.upiName ? ` to ${event.upiName}` : ''}`} className="w-full max-w-[240px] rounded-xl bg-white" />
-            <a href={event.paymentQr} download={`${event.slug}-upi-qr`} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-mute-hi underline decoration-line-strong underline-offset-4 hover:text-frost">
-              <Download size={13} /> Save QR{phone ? ' — then scan it from your gallery in any UPI app' : ''}
+            <a href={event.paymentQr} download={`${event.slug}-upi-qr.webp`} className={phone ? 'pill pill--spark mt-3 w-full' : 'mt-2 inline-flex items-center gap-1.5 text-[13px] text-mute-hi underline decoration-line-strong underline-offset-4 hover:text-frost'}>
+              <Download size={phone ? 15 : 13} /> Save QR{phone ? ' to phone' : ' image'}
             </a>
           </div>
         )}
 
         {event.upiId && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/[0.04] px-4 py-3">
-            <div className="min-w-0">
-              <p className="t-meta">UPI ID{event.upiName ? ` · ${event.upiName}` : ''}</p>
-              <p className="mt-1 select-all break-all text-[14.5px] text-frost">{event.upiId}</p>
+          <div className="mt-3 rounded-xl bg-white/[0.04] px-4 py-3">
+            <p className="t-meta">{phone && event.paymentQr ? 'Or pay to UPI ID' : 'UPI ID'}{event.upiName ? ` · ${event.upiName}` : ''}</p>
+            <div className="mt-1.5 flex items-center justify-between gap-2 sm:gap-3">
+              <p className="min-w-0 select-all text-[13.5px] text-frost [overflow-wrap:anywhere] sm:text-[14px]">{event.upiId}</p>
+              <button type="button" onClick={copy} aria-label="Copy UPI ID" className="pill pill--sm shrink-0 max-sm:!w-9 max-sm:!px-0"><Copy size={13} /><span className="max-sm:hidden">Copy</span></button>
             </div>
-            <button type="button" onClick={copy} className="pill pill--sm shrink-0"><Copy size={13} /> Copy</button>
           </div>
-        )}
-
-        {phone && upiLink && (
-          <a href={upiLink} className="pill pill--spark mt-3 w-full">Pay ₹{amount} in a UPI app</a>
         )}
         {event.paymentNote && <p className="mt-3 text-[13.5px] text-frost/85">{event.paymentNote}</p>}
       </div>
