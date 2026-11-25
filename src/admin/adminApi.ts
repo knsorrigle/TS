@@ -39,11 +39,16 @@ const done = <T,>(v: T) => { notifyDataUpdated(); return v }
 const demoId = () => `demo-${Math.random().toString(36).slice(2, 9)}`
 const now = () => new Date().toISOString()
 
-/* ───────── Auth ───────── */
+/* ───────── Auth ─────────
+ * • The session lives in sessionStorage (see lib/supabase.ts): closing the tab ends it.
+ * • One device at a time: signing in claims the admin seat for *this* session (claim_admin_session);
+ *   the database's is_admin() only honours the seat holder, and other devices are signed out.
+ */
 export type AdminState =
   | { kind: 'loading' }
   | { kind: 'signed-out' }
   | { kind: 'denied' }
+  | { kind: 'elsewhere' } // this account signed in on another device
   | { kind: 'admin'; email: string; role: string }
 
 let demoSession: { email: string } | null = (() => {
@@ -51,14 +56,23 @@ let demoSession: { email: string } | null = (() => {
 })()
 const demoSubs = new Set<(s: AdminState) => void>()
 
-export async function resolveAdmin(session: Session | null): Promise<AdminState> {
+/** Live watchers, so signIn() can re-evaluate once the seat is claimed. */
+const watchers = new Set<() => void>()
+let claiming = false
+
+async function evaluate(session: Session | null): Promise<AdminState> {
   if (!session) return { kind: 'signed-out' }
-  const { data, error } = await (await db()).from('techspark_admins').select('role').eq('id', session.user.id).maybeSingle()
-  if (error || !data) {
-    await (await db()).auth.signOut()
-    return { kind: 'denied' }
+  const client = await db()
+  const { data: ok, error } = await client.rpc('is_admin')
+  if (error) throw new Error(error.message)
+  if (ok) {
+    const { data } = await client.from('techspark_admins').select('role').eq('id', session.user.id).maybeSingle()
+    return { kind: 'admin', email: session.user.email ?? '', role: (data as { role: string } | null)?.role ?? 'admin' }
   }
-  return { kind: 'admin', email: session.user.email ?? '', role: (data as { role: string }).role }
+  // Not the seat holder. Is it an admin account at all? (A user can always read their own row.)
+  const { data: row } = await client.from('techspark_admins').select('id').eq('id', session.user.id).maybeSingle()
+  await client.auth.signOut({ scope: 'local' })
+  return row ? { kind: 'elsewhere' } : { kind: 'denied' }
 }
 
 export function watchAdmin(cb: (s: AdminState) => void) {
@@ -68,20 +82,30 @@ export function watchAdmin(cb: (s: AdminState) => void) {
     return () => { demoSubs.delete(cb) }
   }
   let alive = true
+  let last: AdminState['kind'] = 'loading'
   let unsub = () => {}
+  let timer = 0
+  const run = async () => {
+    if (!alive || claiming) return
+    const client = await db()
+    const { data } = await client.auth.getSession()
+    const s = await evaluate(data.session).catch(() => ({ kind: 'signed-out' }) as AdminState)
+    // keep an "elsewhere"/"denied" message on screen after the resulting SIGNED_OUT event
+    if (s.kind === 'signed-out' && (last === 'elsewhere' || last === 'denied')) return
+    last = s.kind
+    if (alive) cb(s)
+  }
+  watchers.add(run)
   db().then((client) => {
     if (!alive) return
-    // onAuthStateChange fires INITIAL_SESSION immediately with the stored session.
-    const { data } = client.auth.onAuthStateChange((_evt: string, session: Session | null) => {
-      // defer the follow-up query out of the auth callback, as Supabase recommends
-      setTimeout(async () => {
-        const s = await resolveAdmin(session).catch(() => ({ kind: 'signed-out' }) as AdminState)
-        if (alive) cb(s)
-      }, 0)
-    })
+    const { data } = client.auth.onAuthStateChange(() => { setTimeout(run, 0) }) // defer out of the auth callback
     unsub = () => data.subscription.unsubscribe()
+    // someone else may take the seat at any time: re-check every 20s and whenever the tab comes back
+    timer = window.setInterval(() => { if (last === 'admin') run() }, 20_000)
   }).catch(() => alive && cb({ kind: 'signed-out' }))
-  return () => { alive = false; unsub() }
+  const onVisible = () => { if (document.visibilityState === 'visible' && last === 'admin') run() }
+  document.addEventListener('visibilitychange', onVisible)
+  return () => { alive = false; unsub(); clearInterval(timer); watchers.delete(run); document.removeEventListener('visibilitychange', onVisible) }
 }
 
 export async function signIn(email: string, password: string): Promise<string | null> {
@@ -93,13 +117,29 @@ export async function signIn(email: string, password: string): Promise<string | 
     demoSubs.forEach((f) => f({ kind: 'admin', email, role: 'admin (demo)' }))
     return null
   }
-  const { error } = await (await db()).auth.signInWithPassword({ email: email.trim(), password })
-  return error ? error.message : null
+  const client = await db()
+  claiming = true
+  try {
+    const { error } = await client.auth.signInWithPassword({ email: email.trim(), password })
+    if (error) return error.message
+    const { data: role, error: claimErr } = await client.rpc('claim_admin_session')
+    if (claimErr) {
+      await client.auth.signOut({ scope: 'local' })
+      return /claim_admin_session/.test(claimErr.message)
+        ? 'The database needs the latest schema (one-device sign-in). Run the update from Database & Schema.'
+        : claimErr.message
+    }
+    if (role) await client.auth.signOut({ scope: 'others' }) // revoke this account's sessions on other devices
+    return null
+  } finally {
+    claiming = false
+    watchers.forEach((w) => w())
+  }
 }
 
 export async function signOut() {
   if (isDemo) { demoSession = null; sessionStorage.removeItem('ts_demo_admin'); demoSubs.forEach((f) => f({ kind: 'signed-out' })); return }
-  await (await db()).auth.signOut()
+  await (await db()).auth.signOut({ scope: 'local' })
 }
 
 /* ───────── Events ───────── */

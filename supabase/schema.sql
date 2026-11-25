@@ -18,7 +18,14 @@ create table if not exists public.techspark_admins (
   created_at timestamptz not null default now()
 );
 
+-- One device at a time: the session that signed in most recently holds the admin seat.
+-- (Supabase puts a session_id claim in every access token; we compare against it.)
+alter table public.techspark_admins add column if not exists active_session uuid;
+alter table public.techspark_admins add column if not exists session_claimed_at timestamptz;
+
 -- The single source of truth for "is this request from an admin?" — used by every RLS policy.
+-- True only for an admin account *and* the session currently holding the seat, so a second device
+-- (or a stolen old token) loses every admin permission the moment someone signs in elsewhere.
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -26,10 +33,38 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (select 1 from public.techspark_admins where id = auth.uid());
+  select exists (
+    select 1 from public.techspark_admins a
+    where a.id = auth.uid()
+      and (a.active_session is null or a.active_session::text = coalesce(auth.jwt() ->> 'session_id', ''))
+  );
 $$;
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to anon, authenticated;
+
+-- Called right after a successful sign-in: this session takes the seat. Returns the role, or null if not an admin.
+create or replace function public.claim_admin_session()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sid  text := auth.jwt() ->> 'session_id';
+  v_role text;
+begin
+  if auth.uid() is null or v_sid is null then
+    return null;
+  end if;
+  update public.techspark_admins
+     set active_session = v_sid::uuid, session_claimed_at = now()
+   where id = auth.uid()
+  returning role into v_role;
+  return v_role;
+end;
+$$;
+revoke all on function public.claim_admin_session() from public, anon;
+grant execute on function public.claim_admin_session() to authenticated;
 
 -- ─────────────────────────────── Events ───────────────────────────────
 create table if not exists public.techspark_events (

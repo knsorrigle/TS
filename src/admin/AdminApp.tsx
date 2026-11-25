@@ -33,13 +33,13 @@ export default function AdminApp() {
   return (
     <div className="min-h-[100svh] bg-void px-[var(--gutter)] pb-20 pt-[calc(var(--nav-h)+28px)]">
       {state.kind === 'loading' && <div className="grid min-h-[60vh] place-items-center"><Loader2 className="animate-spin text-spark" aria-label="Checking your session" /></div>}
-      {(state.kind === 'signed-out' || state.kind === 'denied') && <Login denied={state.kind === 'denied'} />}
+      {(state.kind === 'signed-out' || state.kind === 'denied' || state.kind === 'elsewhere') && <Login denied={state.kind === 'denied'} elsewhere={state.kind === 'elsewhere'} />}
       {state.kind === 'admin' && <Dashboard email={state.email} role={state.role} />}
     </div>
   )
 }
 
-function Login({ denied }: { denied: boolean }) {
+function Login({ denied, elsewhere }: { denied: boolean; elsewhere: boolean }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
@@ -65,12 +65,18 @@ function Login({ denied }: { denied: boolean }) {
         <div className="relative">
           <p className="t-label text-spark">Organizer access</p>
           <h1 className="t-h1 mt-3 text-[36px] text-frost">Admin sign in</h1>
-          <p className="t-body mt-2 text-[14.5px]">For club leads and organizers only.</p>
+          <p className="t-body mt-2 text-[14.5px]">For club leads and organizers only. Sessions end when you close this tab, and one device can be signed in at a time.</p>
 
           {denied && (
             <p role="alert" className="mt-6 flex gap-3 rounded-xl border border-ember/30 bg-ember/10 p-4 text-[14px] text-frost">
               <ShieldAlert size={18} className="shrink-0 text-ember" />
               <span><b>Access denied.</b> This account isn’t on the organizer list. Ask a club lead to add you.</span>
+            </p>
+          )}
+          {elsewhere && (
+            <p role="alert" className="mt-6 flex gap-3 rounded-xl border border-amber/30 bg-amber/10 p-4 text-[14px] text-frost">
+              <ShieldAlert size={18} className="shrink-0 text-amber" />
+              <span><b>Signed out.</b> This account just signed in on another device — only one device can hold the admin session. Sign in again here to take it back.</span>
             </p>
           )}
           {!configured && (

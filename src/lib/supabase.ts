@@ -10,8 +10,18 @@ export const isSupabaseConfigured = Boolean(url && anon && !url.includes('your-p
 let client: Promise<SupabaseClient | null> | null = null
 export function getSupabase(): Promise<SupabaseClient | null> {
   if (!isSupabaseConfigured) return Promise.resolve(null)
+  // Sessions from before the per-tab change were kept in localStorage: remove them so nothing lingers.
+  try { Object.keys(localStorage).filter((k) => /^sb-.*-auth-token$/.test(k)).forEach((k) => localStorage.removeItem(k)) } catch { /* storage blocked */ }
   client ??= import('@supabase/supabase-js').then(({ createClient }) =>
-    createClient(url!, anon!, { auth: { persistSession: true, autoRefreshToken: true } }))
+    createClient(url!, anon!, {
+      auth: {
+        // Per-tab storage: the admin session ends when the tab or window closes, signed out or not.
+        storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+        storageKey: 'ts-admin-auth',
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    }))
   return client
 }
 
