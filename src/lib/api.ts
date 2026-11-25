@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured as isSupabaseConfiguredFlag } from './supabase'
-import { demoAnnouncements, demoEvents, demoPastEvents, demoTeam } from './demo'
+import { demoAnnouncements, demoEvents, demoPastEvents, demoTeam, demoSite } from './demo'
 
 /** Dev without keys → fixtures. Production without keys → the designed error states. */
 export const isDemo = import.meta.env.DEV && !isSupabaseConfiguredFlag
@@ -11,14 +11,17 @@ export interface EventRow {
   date: string | null; time: string | null; location: string | null; category: string | null; status: string | null
   published: boolean; capacity: number | null; registered_count: number | null; speaker: string | null
   image: string | null; tags: string[] | null; featured: boolean; created_at: string
+  end_time?: string | null; registration_mode?: string | null; registration_url?: string | null; registration_deadline?: string | null; gallery?: string[] | null
 }
 export interface AnnouncementRow {
   id: string; title: string; summary: string | null; content: string | null; date: string | null; category: string | null
   priority: string | null; author: string | null; pinned: boolean; published: boolean; related_event_slug: string | null; created_at: string
+  link_url?: string | null; link_label?: string | null
 }
 export interface PastEventRow {
   id: string; title: string; date: string | null; participants: number | null; category: string | null
   description: string | null; image: string | null; highlight: string | null; published: boolean; created_at: string
+  gallery?: string[] | null; link_url?: string | null
 }
 export interface RegistrationRow {
   id: string; event_id: string; event_title: string; student_name: string; student_email: string; student_roll: string
@@ -34,14 +37,17 @@ export interface TSEvent {
   date: string | null; time: string; location: string; category: string; status: string
   published: boolean; capacity: number; registeredCount: number; speaker: string
   image: string; tags: string[]; featured: boolean; createdAt: string
+  endTime: string; registrationMode: 'form' | 'external' | 'closed'; registrationUrl: string; registrationDeadline: string | null; gallery: string[]
 }
 export interface Announcement {
   id: string; title: string; summary: string; content: string; date: string | null; category: string
   priority: string; author: string; pinned: boolean; published: boolean; relatedEventSlug: string | null; createdAt: string
+  linkUrl: string; linkLabel: string
 }
 export interface PastEvent {
   id: string; title: string; date: string | null; participants: number; category: string
   description: string; image: string; highlight: string; published: boolean; createdAt: string
+  gallery: string[]; linkUrl: string
 }
 export interface Registration {
   id: string; eventId: string; eventTitle: string; studentName: string; studentEmail: string; studentRoll: string
@@ -53,28 +59,34 @@ export const toEvent = (r: EventRow): TSEvent => ({
   date: r.date, time: r.time ?? '', location: r.location ?? '', category: r.category ?? 'Technical', status: r.status ?? 'Open',
   published: r.published, capacity: r.capacity ?? 0, registeredCount: r.registered_count ?? 0, speaker: r.speaker ?? '',
   image: r.image ?? '', tags: r.tags ?? [], featured: r.featured, createdAt: r.created_at,
+  endTime: r.end_time ?? '', registrationMode: (['form', 'external', 'closed'].includes(r.registration_mode ?? '') ? r.registration_mode : 'form') as TSEvent['registrationMode'],
+  registrationUrl: r.registration_url ?? '', registrationDeadline: r.registration_deadline ?? null, gallery: r.gallery ?? [],
 })
 export const fromEvent = (e: Partial<TSEvent>): Partial<EventRow> => strip({
   title: e.title, slug: e.slug, description: e.description, full_description: e.fullDescription, date: e.date, time: e.time,
   location: e.location, category: e.category, status: e.status, published: e.published, capacity: e.capacity,
   registered_count: e.registeredCount, speaker: e.speaker, image: e.image, tags: e.tags, featured: e.featured,
+  end_time: e.endTime, registration_mode: e.registrationMode, registration_url: e.registrationUrl,
+  registration_deadline: e.registrationDeadline || null, gallery: e.gallery,
 })
 export const toAnnouncement = (r: AnnouncementRow): Announcement => ({
   id: r.id, title: r.title, summary: r.summary ?? '', content: r.content ?? '', date: r.date, category: r.category ?? 'General',
   priority: r.priority ?? 'Normal', author: r.author ?? '', pinned: r.pinned, published: r.published,
-  relatedEventSlug: r.related_event_slug, createdAt: r.created_at,
+  relatedEventSlug: r.related_event_slug, createdAt: r.created_at, linkUrl: r.link_url ?? '', linkLabel: r.link_label ?? '',
 })
 export const fromAnnouncement = (a: Partial<Announcement>): Partial<AnnouncementRow> => strip({
   title: a.title, summary: a.summary, content: a.content, date: a.date, category: a.category, priority: a.priority,
   author: a.author, pinned: a.pinned, published: a.published, related_event_slug: a.relatedEventSlug,
+  link_url: a.linkUrl, link_label: a.linkLabel,
 })
 export const toPastEvent = (r: PastEventRow): PastEvent => ({
   id: r.id, title: r.title, date: r.date, participants: r.participants ?? 0, category: r.category ?? 'Technical',
   description: r.description ?? '', image: r.image ?? '', highlight: r.highlight ?? '', published: r.published, createdAt: r.created_at,
+  gallery: r.gallery ?? [], linkUrl: r.link_url ?? '',
 })
 export const fromPastEvent = (p: Partial<PastEvent>): Partial<PastEventRow> => strip({
   title: p.title, date: p.date, participants: p.participants, category: p.category, description: p.description,
-  image: p.image, highlight: p.highlight, published: p.published,
+  image: p.image, highlight: p.highlight, published: p.published, gallery: p.gallery, link_url: p.linkUrl,
 })
 export const toRegistration = (r: RegistrationRow): Registration => ({
   id: r.id, eventId: r.event_id, eventTitle: r.event_title, studentName: r.student_name, studentEmail: r.student_email,
@@ -133,6 +145,14 @@ export async function fetchTeam(): Promise<TeamMember[]> {
   const { data, error } = await (await client()).from('techspark_team').select('*').eq('published', true).order('sort_order', { ascending: true })
   if (error) throw new ApiError(error.message)
   return (data as TeamRow[]).map(toTeam)
+}
+
+/* ───────── Site content ───────── */
+export async function fetchSiteContent(): Promise<Record<string, unknown> | null> {
+  if (isDemo) return wait(demoSite.value, 150)
+  const { data, error } = await (await client()).from('techspark_settings').select('value').eq('key', 'site').maybeSingle()
+  if (error) throw new ApiError(error.message)
+  return (data?.value as Record<string, unknown>) ?? null
 }
 
 /* ───────── Registration ───────── */

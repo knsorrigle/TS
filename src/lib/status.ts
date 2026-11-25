@@ -8,6 +8,9 @@ export function seatState(e: TSEvent, now = Date.now()): { label: string; tone: 
   const start = eventStart(e.date, e.time)
   const ended = start ? start.getTime() + 6 * 3600_000 < now : false
   if (/closed|cancel|complete|ended/i.test(e.status) || ended) return { label: 'Closed', tone: 'closed', canRegister: false }
+  const deadlinePassed = e.registrationDeadline ? new Date(e.registrationDeadline).getTime() < now : false
+  if (e.registrationMode === 'closed' || deadlinePassed) return { label: 'Registrations closed', tone: 'closed', canRegister: false }
+  if (e.registrationMode === 'external') return { label: e.registrationUrl ? 'Register via link' : 'Registration opens soon', tone: 'open', canRegister: !!e.registrationUrl }
   if (/^full$/i.test(e.status.trim())) return { label: 'Full', tone: 'full', canRegister: false }
   if (!e.capacity || e.capacity <= 0) return { label: 'Open registration', tone: 'open', canRegister: true }
   const left = e.capacity - e.registeredCount

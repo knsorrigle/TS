@@ -24,6 +24,15 @@ Without Supabase keys, `npm run dev` uses **demo data** (dev only) so every sect
 
 The admin gate is enforced by RLS (`is_admin()`), not just the UI. Anonymous visitors can only read published rows and register through the `register_for_event` RPC.
 
+Already ran an older `schema.sql`? Run the new one again: it's idempotent and only adds what's missing.
+
+## What admin controls
+
+- **Events:** every field, start and end time, cover image, photo gallery, publish/feature. **Registration** is per event: on-site form, an external link (Google Form, Unstop…) or closed, plus an optional closing date and time.
+- **Site content:** every heading, paragraph, button label, keyword, What-we-do row, and the contact email and social links.
+- **Bulletins** (with an optional link), **Past events** (gallery + link), **Team** (photo + hover photo, order).
+- **Registrations:** filter, export .xlsx, add by hand, move between Confirmed and Waitlisted, remove. Seat counts and waitlist promotion are handled by the database.
+
 ## Deploy (Vercel)
 
 Import the repo, add the two `VITE_SUPABASE_*` env vars, deploy. `vercel.json` handles the SPA rewrite. [`middleware.ts`](middleware.ts) injects per-event `<title>`/OG tags on `/events/:slug` so WhatsApp shares show the event.

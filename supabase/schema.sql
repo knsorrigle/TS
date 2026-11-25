@@ -55,6 +55,13 @@ create table if not exists public.techspark_events (
 );
 create index if not exists idx_events_published_date on public.techspark_events (published, date);
 
+-- v2 fields (safe on existing projects)
+alter table public.techspark_events add column if not exists end_time text;
+alter table public.techspark_events add column if not exists registration_mode text not null default 'form'; -- form | external | closed
+alter table public.techspark_events add column if not exists registration_url text;                          -- used when mode = external
+alter table public.techspark_events add column if not exists registration_deadline timestamptz;              -- registrations close after this
+alter table public.techspark_events add column if not exists gallery text[] not null default '{}';
+
 -- ─────────────────────────────── Categories ───────────────────────────────
 create table if not exists public.techspark_categories (
   name        text primary key,
@@ -82,6 +89,8 @@ create table if not exists public.techspark_announcements (
   related_event_slug  text,
   created_at          timestamptz not null default now()
 );
+alter table public.techspark_announcements add column if not exists link_url text;
+alter table public.techspark_announcements add column if not exists link_label text;
 create index if not exists idx_announcements_order on public.techspark_announcements (published, pinned desc, created_at desc);
 
 -- ─────────────────────────────── Past events ───────────────────────────────
@@ -96,6 +105,16 @@ create table if not exists public.techspark_past_events (
   highlight     text,
   published     boolean not null default true,
   created_at    timestamptz not null default now()
+);
+
+alter table public.techspark_past_events add column if not exists gallery text[] not null default '{}';
+alter table public.techspark_past_events add column if not exists link_url text;
+
+-- ─────────────────────────────── Site content (every piece of copy, editable in admin) ───────────────────────────────
+create table if not exists public.techspark_settings (
+  key         text primary key,
+  value       jsonb not null default '{}'::jsonb,
+  updated_at  timestamptz not null default now()
 );
 
 -- ─────────────────────────────── Team ───────────────────────────────
@@ -163,8 +182,14 @@ begin
     return json_build_object('success', false, 'error', 'This event is not open for registration.');
   end if;
 
-  if v_event.status ilike any (array['closed%', 'cancel%', 'complete%', 'ended%']) then
+  if v_event.status ilike any (array['closed%', 'cancel%', 'complete%', 'ended%'])
+     or v_event.registration_mode = 'closed'
+     or (v_event.registration_deadline is not null and now() > v_event.registration_deadline) then
     return json_build_object('success', false, 'error', 'Registrations for this event are closed.');
+  end if;
+
+  if v_event.registration_mode = 'external' then
+    return json_build_object('success', false, 'error', 'This event takes registrations through its own link.');
   end if;
 
   if exists (
@@ -184,10 +209,7 @@ begin
     (event_id, event_title, student_name, student_email, student_roll, department, year, status)
   values
     (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status);
-
-  if v_status = 'Confirmed' then
-    update public.techspark_events set registered_count = registered_count + 1 where id = p_event_id;
-  end if;
+  -- registered_count is maintained by trg_registration_count
 
   return json_build_object(
     'success', true,
@@ -202,9 +224,10 @@ $$;
 revoke all on function public.register_for_event(uuid, text, text, text, text, text) from public;
 grant execute on function public.register_for_event(uuid, text, text, text, text, text) to anon, authenticated;
 
--- When an admin removes a confirmed registration, promote the oldest waitlisted student
--- (or free the seat if nobody is waiting).
-create or replace function public.techspark_on_registration_delete()
+-- Seat accounting lives in one trigger, so the RPC, admin inserts, status edits and deletes all stay consistent.
+--   insert Confirmed → +1 · status Waitlisted→Confirmed → +1 · Confirmed→Waitlisted → −1
+--   delete Confirmed → promote the oldest waitlisted student (seat stays taken), or −1 if nobody is waiting
+create or replace function public.techspark_registration_count()
 returns trigger
 language plpgsql
 security definer
@@ -212,23 +235,41 @@ set search_path = public
 as $$
 declare v_next uuid;
 begin
-  if old.status = 'Confirmed' then
-    select id into v_next from public.techspark_registrations
-    where event_id = old.event_id and status = 'Waitlisted'
-    order by created_at asc limit 1
-    for update skip locked;
-    if v_next is not null then
-      update public.techspark_registrations set status = 'Confirmed' where id = v_next;
-    else
-      update public.techspark_events set registered_count = greatest(registered_count - 1, 0) where id = old.event_id;
+  if tg_op = 'INSERT' then
+    if new.status = 'Confirmed' then
+      update public.techspark_events set registered_count = registered_count + 1 where id = new.event_id;
     end if;
+    return new;
+  elsif tg_op = 'UPDATE' then
+    if old.status <> new.status then
+      update public.techspark_events
+        set registered_count = greatest(registered_count + case when new.status = 'Confirmed' then 1 else -1 end, 0)
+        where id = new.event_id;
+    end if;
+    return new;
+  else -- DELETE
+    if old.status = 'Confirmed' then
+      select id into v_next from public.techspark_registrations
+      where event_id = old.event_id and status = 'Waitlisted'
+      order by created_at asc limit 1
+      for update skip locked;
+      if v_next is not null then
+        -- the promoted student inherits the freed seat: UPDATE fires +1, so release the old seat first
+        update public.techspark_events set registered_count = greatest(registered_count - 1, 0) where id = old.event_id;
+        update public.techspark_registrations set status = 'Confirmed' where id = v_next;
+      else
+        update public.techspark_events set registered_count = greatest(registered_count - 1, 0) where id = old.event_id;
+      end if;
+    end if;
+    return old;
   end if;
-  return old;
 end;
 $$;
 drop trigger if exists trg_registration_delete on public.techspark_registrations;
-create trigger trg_registration_delete after delete on public.techspark_registrations
-for each row execute function public.techspark_on_registration_delete();
+drop function if exists public.techspark_on_registration_delete();
+drop trigger if exists trg_registration_count on public.techspark_registrations;
+create trigger trg_registration_count after insert or update of status or delete on public.techspark_registrations
+for each row execute function public.techspark_registration_count();
 
 -- ════════════════════════════════════════════════════════════════════════════
 --  Row Level Security — the admin gate lives here, not in the browser.
@@ -239,6 +280,7 @@ alter table public.techspark_categories    enable row level security;
 alter table public.techspark_announcements enable row level security;
 alter table public.techspark_past_events   enable row level security;
 alter table public.techspark_team          enable row level security;
+alter table public.techspark_settings      enable row level security;
 alter table public.techspark_registrations enable row level security;
 
 -- admins: a signed-in user can read their own row (the client uses this to read `role`).
@@ -259,6 +301,13 @@ begin
   end loop;
 end $$;
 
+-- site content: readable by everyone, writable by admins.
+drop policy if exists "public read" on public.techspark_settings;
+create policy "public read" on public.techspark_settings for select to anon, authenticated using (true);
+drop policy if exists "admin write" on public.techspark_settings;
+create policy "admin write" on public.techspark_settings
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
 -- categories: readable by everyone, writable by admins.
 drop policy if exists "public read" on public.techspark_categories;
 create policy "public read" on public.techspark_categories for select to anon, authenticated using (true);
@@ -269,6 +318,8 @@ create policy "admin write" on public.techspark_categories
 -- registrations: no anon access at all (anon registers only through the RPC above).
 drop policy if exists "admin read" on public.techspark_registrations;
 create policy "admin read" on public.techspark_registrations for select to authenticated using (public.is_admin());
+drop policy if exists "admin insert" on public.techspark_registrations;
+create policy "admin insert" on public.techspark_registrations for insert to authenticated with check (public.is_admin());
 drop policy if exists "admin update" on public.techspark_registrations;
 create policy "admin update" on public.techspark_registrations
   for update to authenticated using (public.is_admin()) with check (public.is_admin());
