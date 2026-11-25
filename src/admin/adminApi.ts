@@ -285,6 +285,34 @@ export function checkImage(file: File): string | null {
   return null
 }
 
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
+export const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
+
+/** Photos ≤ 5 MB (jpg/png/webp) or videos ≤ 50 MB (mp4/webm/mov). */
+export function checkMedia(file: File): string | null {
+  if (VIDEO_TYPES.includes(file.type)) {
+    if (file.size > MAX_VIDEO_BYTES) return `“${file.name}” is ${(file.size / 1048576).toFixed(0)} MB. Videos can be up to 50 MB — for longer clips, upload to YouTube and paste the link.`
+    return null
+  }
+  return checkImage(file)
+}
+
+export async function uploadMedia(file: File): Promise<string> {
+  if (!VIDEO_TYPES.includes(file.type)) return uploadImage(file)
+  const bad = checkMedia(file)
+  if (bad) throw new Error(bad)
+  if (isDemo) return URL.createObjectURL(file) + '#.mp4'
+  const ext = file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4'
+  const path = `videos/${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`
+  const { error } = await (await db()).storage.from(EVENT_IMAGES_BUCKET).upload(path, file, { contentType: file.type, cacheControl: '31536000', upsert: false })
+  if (error) {
+    if (/mime|not allowed|invalid/i.test(error.message)) throw new Error('Video uploads aren’t enabled on your storage yet — run the video snippet from Admin → Database & Schema.')
+    if (/size|too large|exceed/i.test(error.message)) throw new Error('That video is over your Supabase upload limit. Upload it to YouTube and paste the link instead.')
+    throw new Error(error.message)
+  }
+  return (await db()).storage.from(EVENT_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl
+}
+
 export async function uploadImage(file: File): Promise<string> {
   const bad = checkImage(file)
   if (bad) throw new Error(bad)

@@ -63,7 +63,7 @@ export function PastTab() {
           <Field label="Highlight" hint="Achievement line, shown in blue"><Input value={edit.v.highlight ?? ''} onChange={(e) => set('highlight', e.target.value)} placeholder="Winning team solved 9 of 10 problems" /></Field>
           <Field label="Link" hint="optional: results, album…"><Input value={edit.v.linkUrl ?? ''} onChange={(e) => set('linkUrl', e.target.value)} placeholder="https://…" /></Field>
           <ImageField label="Cover image" value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
-          <GalleryField value={edit.v.gallery ?? []} onChange={(v) => set('gallery', v)} />
+          <GalleryField label="Gallery — photos & videos" allowVideo value={edit.v.gallery ?? []} onChange={(v) => set('gallery', v)} />
           <Toggle checked={!!edit.v.published} onChange={(v) => set('published', v)} label="Published" />
         </>)}
       </Drawer>

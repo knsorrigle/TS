@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { X, Upload, Loader2, Trash2, ImageOff, Link2, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { checkImage, uploadImage } from './adminApi'
+import { X, Upload, Loader2, Trash2, ImageOff, Link2, ChevronLeft, ChevronRight, Plus, Play } from 'lucide-react'
+import { checkImage, checkMedia, uploadImage, uploadMedia } from './adminApi'
+import { parseMedia, countLabel } from '../lib/media'
 import { toast } from '../lib/toast'
 
 export function Field({ label, hint, error, children, className = '' }: { label: string; hint?: string; error?: string; children: ReactNode; className?: string }) {
@@ -162,7 +163,7 @@ export function TableState({ status, error, onRetry, empty, colSpan }: { status:
 }
 
 /** Many photos: upload several at once, paste URLs, reorder, remove. */
-export function GalleryField({ value, onChange, label = 'Photo gallery' }: { value: string[]; onChange: (v: string[]) => void; label?: string }) {
+export function GalleryField({ value, onChange, label = 'Photo gallery', allowVideo = false }: { value: string[]; onChange: (v: string[]) => void; label?: string; allowVideo?: boolean }) {
   const [busy, setBusy] = useState(0)
   const [err, setErr] = useState('')
   const [url, setUrl] = useState('')
@@ -171,15 +172,15 @@ export function GalleryField({ value, onChange, label = 'Photo gallery' }: { val
     if (!files?.length) return
     setErr('')
     const list = [...files]
-    const bad = list.map(checkImage).find(Boolean)
+    const bad = list.map(allowVideo ? checkMedia : checkImage).find(Boolean)
     if (bad) { setErr(bad); return }
     setBusy(list.length)
     const out: string[] = []
     for (const f of list) {
-      try { out.push(await uploadImage(f)) } catch (e) { setErr(e instanceof Error ? e.message : 'Upload failed') }
+      try { out.push(await (allowVideo ? uploadMedia(f) : uploadImage(f))) } catch (e) { setErr(e instanceof Error ? e.message : 'Upload failed') }
       setBusy((n) => n - 1)
     }
-    if (out.length) { onChange([...value, ...out]); toast.success(`${out.length} photo${out.length === 1 ? '' : 's'} added`) }
+    if (out.length) { onChange([...value, ...out]); toast.success(`${countLabel(out)} added`) }
   }
   const move = (i: number, d: -1 | 1) => {
     const j = i + d
@@ -187,11 +188,11 @@ export function GalleryField({ value, onChange, label = 'Photo gallery' }: { val
     const next = [...value]; [next[i], next[j]] = [next[j], next[i]]; onChange(next)
   }
   return (
-    <Field label={label} hint={`${value.length} photo${value.length === 1 ? '' : 's'} · JPG/PNG/WebP · 5 MB each`} error={err}>
+    <Field label={label} hint={`${countLabel(value) || 'Empty'} · ${allowVideo ? 'photos ≤ 5 MB, videos ≤ 50 MB, or paste a YouTube/Vimeo/Drive link' : 'JPG/PNG/WebP · 5 MB each'}`} error={err}>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {value.map((src, i) => (
           <div key={src + i} className="group relative aspect-square overflow-hidden rounded-lg border border-line">
-            <img src={src} alt="" className="h-full w-full object-cover" />
+            <MediaThumb src={src} />
             <div className="absolute inset-x-1 bottom-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               <button type="button" onClick={() => move(i, -1)} aria-label="Move earlier" className="grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white"><ChevronLeft size={13} /></button>
               <button type="button" onClick={() => onChange(value.filter((_, k) => k !== i))} aria-label="Remove photo" className="grid h-7 w-7 place-items-center rounded-full bg-black/80 text-ember"><Trash2 size={13} /></button>
@@ -200,18 +201,28 @@ export function GalleryField({ value, onChange, label = 'Photo gallery' }: { val
           </div>
         ))}
         <button type="button" onClick={() => input.current?.click()} disabled={busy > 0} className="grid aspect-square place-items-center rounded-lg border border-dashed border-line-strong text-mute-hi transition-colors hover:border-white hover:text-white">
-          {busy > 0 ? <span className="flex flex-col items-center gap-1 text-[12px]"><Loader2 size={16} className="animate-spin" />{busy} left</span> : <span className="flex flex-col items-center gap-1 text-[12px]"><Upload size={16} />Add photos</span>}
+          {busy > 0 ? <span className="flex flex-col items-center gap-1 text-[12px]"><Loader2 size={16} className="animate-spin" />{busy} left</span> : <span className="flex flex-col items-center gap-1 text-[12px]"><Upload size={16} />{allowVideo ? 'Add photos or videos' : 'Add photos'}</span>}
         </button>
       </div>
-      <input ref={input} type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} onChange={(e) => { add(e.target.files); e.target.value = '' }} />
+      <input ref={input} type="file" multiple accept={allowVideo ? 'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp'} className="sr-only" tabIndex={-1} onChange={(e) => { add(e.target.files); e.target.value = '' }} />
       <div className="mt-2 flex items-center gap-2">
         <Link2 size={14} className="shrink-0 text-mute" aria-hidden />
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…or paste an image URL" className="!h-9 !text-[13.5px]"
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={allowVideo ? '…or paste an image, YouTube, Vimeo or Drive link' : '…or paste an image URL'} className="!h-9 !text-[13.5px]"
           onKeyDown={(e) => { if (e.key === 'Enter' && url.trim()) { e.preventDefault(); onChange([...value, url.trim()]); setUrl('') } }} />
         <button type="button" disabled={!url.trim()} onClick={() => { onChange([...value, url.trim()]); setUrl('') }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line-strong text-mute-hi hover:text-white disabled:opacity-30" aria-label="Add URL"><Plus size={15} /></button>
       </div>
     </Field>
   )
+}
+
+/** Admin thumbnail for any gallery item. */
+function MediaThumb({ src }: { src: string }) {
+  const m = parseMedia(src)
+  const badge = <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[10.5px] text-white"><Play size={10} fill="currentColor" />{m.kind === 'video' ? 'Video' : m.kind === 'youtube' ? 'YouTube' : m.kind === 'vimeo' ? 'Vimeo' : 'Drive'}</span>
+  if (m.kind === 'image') return <img src={src} alt="" className="h-full w-full object-cover" />
+  if (m.kind === 'video') return <><video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover" />{badge}</>
+  if (m.thumb) return <><img src={m.thumb} alt="" className="h-full w-full object-cover" />{badge}</>
+  return <><span className="grid h-full w-full place-items-center bg-white/5 text-mute-hi"><Play size={20} /></span>{badge}</>
 }
 
 /** Comma/line separated list ↔ string[] */

@@ -328,12 +328,14 @@ create policy "admin delete" on public.techspark_registrations for delete to aut
 revoke insert on public.techspark_registrations from anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
---  Storage: event-images (public read, admin write) — event, gallery and team photos
+--  Storage: event-images (public read, admin write) — event, gallery and team photos + gallery videos
 -- ════════════════════════════════════════════════════════════════════════════
+-- Photos (≤ 5 MB, enforced in the admin UI) and gallery videos (≤ 50 MB). The bucket allows the larger of the two.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('event-images', 'event-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
-on conflict (id) do update set public = true, file_size_limit = 5242880,
-  allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+values ('event-images', 'event-images', true, 52428800,
+        array['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'])
+on conflict (id) do update set public = true, file_size_limit = 52428800,
+  allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
 
 drop policy if exists "event images public read" on storage.objects;
 create policy "event images public read" on storage.objects

@@ -9,6 +9,7 @@ import { useDesktop, useReducedMotion } from '../lib/useMedia'
 import { CATEGORY_META, categoryKey } from '../lib/site'
 import { Duotone } from '../components/Duotone'
 import { Lightbox } from '../components/Gallery'
+import { countLabel, isVideo } from '../lib/media'
 import { Skeleton } from '../components/Skeleton'
 import { StateCard } from './Events'
 
@@ -49,6 +50,7 @@ export function Archive() {
 function Frame({ p, i }: { p: PastEvent; i: number }) {
   const [view, setView] = useState(false)
   const photos = [p.image, ...p.gallery].filter(Boolean)
+  const cover = p.image || p.gallery.find((u) => !isVideo(u)) || ''
   const meta = CATEGORY_META[categoryKey(p.category)]
   const d = p.date ? new Date(`${p.date}T00:00:00`) : null
   const when = d ? d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : ''
@@ -56,11 +58,11 @@ function Frame({ p, i }: { p: PastEvent; i: number }) {
     <article className="above-spark group relative flex w-[min(80vw,440px)] shrink-0 snap-start flex-col">
       <p className="t-meta mb-3 flex justify-between"><span>{when}</span><span>{meta.short}</span></p>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[28px]">
-        <Duotone src={p.image} alt={p.title} category={p.category} className="absolute inset-0" blank={<span className="t-serif absolute bottom-5 left-6 text-[clamp(72px,8vw,120px)] leading-none text-white/90">{String(i + 1).padStart(2, '0')}</span>} />
+        <Duotone src={cover} alt={p.title} category={p.category} className="absolute inset-0" blank={<span className="t-serif absolute bottom-5 left-6 text-[clamp(72px,8vw,120px)] leading-none text-white/90">{String(i + 1).padStart(2, '0')}</span>} />
         {photos.length > 0 && (
-          <button type="button" onClick={() => setView(true)} className="absolute inset-0 z-[5]" aria-label={`View ${photos.length} photo${photos.length === 1 ? '' : 's'} from ${p.title}`} />
+          <button type="button" onClick={() => setView(true)} className="absolute inset-0 z-[5]" aria-label={`View ${countLabel(photos)} from ${p.title}`} />
         )}
-        {photos.length > 1 && <span className="t-num absolute right-3 top-3 z-10 rounded-full bg-black/60 px-3 py-1.5 text-[12px] text-white backdrop-blur">{photos.length} photos</span>}
+        {photos.length > 1 && <span className="t-num absolute right-3 top-3 z-10 rounded-full bg-black/60 px-3 py-1.5 text-[12px] text-white backdrop-blur">{countLabel(photos)}</span>}
         {p.participants > 0 && (
           <span className="t-num absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-void/65 px-3 py-1.5 text-[12px] font-[600] text-frost backdrop-blur">
             <Users size={13} aria-hidden /> {p.participants} participants
@@ -97,21 +99,33 @@ function PinnedStrip({ items }: { items: PastEvent[] }) {
   useLayoutEffect(() => {
     const el = stage.current
     if (!el) return
-    let startX = 0, startY = 0, dragging = false
-    const down = (e: PointerEvent) => { if (e.pointerType !== 'mouse' || e.button !== 0) return; dragging = true; startX = e.clientX; startY = scrollY; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing' }
-    const move = (e: PointerEvent) => {
-      if (!dragging) return
+    // a press only becomes a drag after ~6px of movement, so taps and clicks on frames still work
+    let startX = 0, startY = 0, down = false, dragging = false, justDragged = false
+    const onDown = (e: PointerEvent) => { if (e.pointerType !== 'mouse' || e.button !== 0) return; down = true; dragging = false; startX = e.clientX; startY = scrollY }
+    const onMove = (e: PointerEvent) => {
+      if (!down) return
+      if (!dragging) {
+        if (Math.abs(e.clientX - startX) < 6) return
+        dragging = true
+        el.setPointerCapture(e.pointerId)
+        el.style.cursor = 'grabbing'
+      }
       const target = startY - (e.clientX - startX) * 1.4
       const l = getLenis()
       if (l) l.scrollTo(target, { immediate: true })
       else scrollTo(0, target)
     }
-    const up = () => { dragging = false; el.style.cursor = '' }
-    el.addEventListener('pointerdown', down)
-    el.addEventListener('pointermove', move)
-    el.addEventListener('pointerup', up)
-    el.addEventListener('pointercancel', up)
-    return () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up) }
+    const onUp = () => { if (dragging) { justDragged = true; setTimeout(() => { justDragged = false }, 0) } down = false; dragging = false; el.style.cursor = '' }
+    const onClick = (e: MouseEvent) => { if (justDragged) { e.preventDefault(); e.stopPropagation() } }
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+    el.addEventListener('pointercancel', onUp)
+    el.addEventListener('click', onClick, true)
+    return () => {
+      el.removeEventListener('pointerdown', onDown); el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerup', onUp); el.removeEventListener('pointercancel', onUp); el.removeEventListener('click', onClick, true)
+    }
   }, [])
 
   return (
