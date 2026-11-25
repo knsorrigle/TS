@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X, Play } from 'lucide-react'
 import { parseMedia, type Media } from '../lib/media'
 import { lockScroll } from '../lib/motion'
@@ -38,8 +39,10 @@ export function Lightbox({ images, start, title, onClose }: { images: string[]; 
     return () => { removeEventListener('keydown', key); lockScroll(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  return (
-    <div data-lenis-prevent role="dialog" aria-modal="true" aria-label={`${title} — photos`} className="fixed inset-0 z-[160] flex items-center justify-center bg-black/95"
+  // Portal to <body>: opened from inside a layered section, the viewer would otherwise sit beneath the
+  // nav and footer (its z-index can't escape the section's stacking context) and its close button couldn't be clicked.
+  return createPortal(
+    <div data-lenis-prevent role="dialog" aria-modal="true" aria-label={`${title} — photos`} className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95"
       onTouchStart={(e) => { touch.current = e.touches[0].clientX }}
       onTouchEnd={(e) => { if (touch.current === null) return; const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 40) (dx > 0 ? prev() : next()); touch.current = null }}>
       <Stage key={images[i]} m={parseMedia(images[i])} alt={`${title} — ${i + 1} of ${images.length}`} />
@@ -49,7 +52,8 @@ export function Lightbox({ images, start, title, onClose }: { images: string[]; 
         <button type="button" onClick={prev} aria-label="Previous photo" className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/25 text-white hover:bg-white hover:text-black"><ChevronLeft size={18} /></button>
         <button type="button" onClick={next} aria-label="Next photo" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/25 text-white hover:bg-white hover:text-black"><ChevronRight size={18} /></button>
       </>}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
