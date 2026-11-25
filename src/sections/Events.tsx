@@ -7,7 +7,7 @@ import { useReveals } from '../lib/reveal'
 import { useContent } from '../lib/content'
 import { CATEGORY_META, categoryKey, type CategoryKey } from '../lib/site'
 import { eventStart, formatDateShort } from '../lib/time'
-import { isUpcoming, seatState } from '../lib/status'
+import { isUpcoming, seatState, teamRange } from '../lib/status'
 import { leanSpark } from '../three/sparkState'
 import { RegisterLink, Soon } from '../components/EventCard'
 import { Duotone } from '../components/Duotone'
@@ -145,7 +145,7 @@ function Case({ e, first, featured }: { e: TSEvent; first: boolean; featured: bo
           <Link to={`/events/${e.slug}`} viewTransition className="transition-opacity hover:opacity-80">{e.title}</Link>
         </h3>
         <p className="t-num mx-auto mt-3 max-w-[70ch] text-[14.5px] text-mute-hi">
-          {[formatDateShort(e.date), e.time, e.location, meta.short].filter(Boolean).join(' · ')}
+          {[formatDateShort(e.date), e.time, e.location, meta.short, e.registrationKind === 'team' ? `Teams of ${teamRange(e)}` : ''].filter(Boolean).join(' · ')}
           <span className="mx-2 text-white/25">·</span>
           <span className={`whitespace-nowrap ${s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}`}>{s.label}</span>
         </p>

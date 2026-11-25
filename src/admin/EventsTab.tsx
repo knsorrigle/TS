@@ -9,7 +9,7 @@ import { toast } from '../lib/toast'
 
 const CATS = ['Technical', 'Non-Technical', 'Fun & Social']
 const STATUSES = ['Open', 'Full', 'Closed']
-const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', endTime: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false, registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [] })
+const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', endTime: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false, registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4 })
 
 const MODES = [{ v: 'form', l: 'On this site (registration form)' }, { v: 'external', l: 'External link (Google Form, Unstop…)' }, { v: 'closed', l: 'Closed' }]
 /** <input type=datetime-local> wants local 'YYYY-MM-DDTHH:mm' */
@@ -37,6 +37,7 @@ export function EventsTab() {
     if (!v.title?.trim()) errs.title = 'Required'
     if (!v.date) errs.date = 'Required'
     if ((v.capacity ?? 0) < 0) errs.capacity = 'Must be 0 or more'
+    if (v.registrationKind === 'team' && !((v.teamMin ?? 0) >= 1 && (v.teamMax ?? 0) >= (v.teamMin ?? 0))) errs.teamMax = 'Max must be ≥ min'
     if (v.registrationMode === 'external' && !/^https?:\/\//.test(v.registrationUrl ?? '')) errs.registrationUrl = 'Paste a full link (https://…)'
     setErrors(errs)
     if (Object.keys(errs).length) return
@@ -105,7 +106,7 @@ export function EventsTab() {
               <Field label="Speaker"><Input value={edit.v.speaker ?? ''} onChange={(e) => set('speaker', e.target.value)} /></Field>
               <Field label="Category"><Select options={CATS} value={edit.v.category} onChange={(e) => set('category', e.target.value)} /></Field>
               <Field label="Status"><Select options={STATUSES} value={edit.v.status} onChange={(e) => set('status', e.target.value)} /></Field>
-              <Field label="Capacity" hint="0 = unlimited" error={errors.capacity}><Input type="number" min={0} value={edit.v.capacity ?? 0} onChange={(e) => set('capacity', Number(e.target.value))} /></Field>
+              <Field label={edit.v.registrationKind === 'team' ? 'Capacity (teams)' : 'Capacity'} hint="0 = unlimited" error={errors.capacity}><Input type="number" min={0} value={edit.v.capacity ?? 0} onChange={(e) => set('capacity', Number(e.target.value))} /></Field>
               <Field label="Tags" hint="comma separated"><Input value={tagText} onChange={(e) => setTagText(e.target.value)} placeholder="Hackathon, Teams" /></Field>
             </div>
             <div className="rounded-xl border border-line p-4">
@@ -116,6 +117,16 @@ export function EventsTab() {
                     {MODES.map((m) => <option key={m.v} value={m.v} className="bg-ink">{m.l}</option>)}
                   </select>
                 </Field>
+                <Field label="Who registers" className="sm:col-span-2">
+                  <select value={edit.v.registrationKind ?? 'individual'} onChange={(e) => set('registrationKind', e.target.value as TSEvent['registrationKind'])} className="h-11 w-full cursor-pointer rounded-xl border border-line-strong bg-void/60 px-3.5 text-[15px] text-frost outline-none focus:border-spark/70">
+                    <option value="individual" className="bg-ink">Individuals (one student per registration)</option>
+                    <option value="team" className="bg-ink">Teams (a leader registers the whole team)</option>
+                  </select>
+                </Field>
+                {edit.v.registrationKind === 'team' && (<>
+                  <Field label="Smallest team" hint="people, incl. leader"><Input type="number" min={1} max={20} value={edit.v.teamMin ?? 2} onChange={(e) => set('teamMin', Math.max(1, Number(e.target.value) || 1))} /></Field>
+                  <Field label="Largest team" error={errors.teamMax}><Input type="number" min={1} max={20} value={edit.v.teamMax ?? 4} invalid={!!errors.teamMax} onChange={(e) => set('teamMax', Math.max(1, Number(e.target.value) || 1))} /></Field>
+                </>)}
                 {edit.v.registrationMode === 'external' && (
                   <Field label="Registration link" error={errors.registrationUrl} className="sm:col-span-2"><Input value={edit.v.registrationUrl ?? ''} invalid={!!errors.registrationUrl} onChange={(e) => set('registrationUrl', e.target.value)} placeholder="https://forms.gle/…" /></Field>
                 )}

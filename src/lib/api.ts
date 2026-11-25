@@ -12,6 +12,7 @@ export interface EventRow {
   published: boolean; capacity: number | null; registered_count: number | null; speaker: string | null
   image: string | null; tags: string[] | null; featured: boolean; created_at: string
   end_time?: string | null; registration_mode?: string | null; registration_url?: string | null; registration_deadline?: string | null; gallery?: string[] | null
+  registration_kind?: string | null; team_min?: number | null; team_max?: number | null
 }
 export interface AnnouncementRow {
   id: string; title: string; summary: string | null; content: string | null; date: string | null; category: string | null
@@ -26,6 +27,7 @@ export interface PastEventRow {
 export interface RegistrationRow {
   id: string; event_id: string; event_title: string; student_name: string; student_email: string; student_roll: string
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; created_at: string
+  team_name?: string | null; team_members?: TeamMemberInput[] | null
 }
 
 export interface TeamRow { id: string; name: string; role: string | null; photo: string | null; photo_fun: string | null; sort_order: number | null; published: boolean; created_at: string }
@@ -38,6 +40,7 @@ export interface TSEvent {
   published: boolean; capacity: number; registeredCount: number; speaker: string
   image: string; tags: string[]; featured: boolean; createdAt: string
   endTime: string; registrationMode: 'form' | 'external' | 'closed'; registrationUrl: string; registrationDeadline: string | null; gallery: string[]
+  registrationKind: 'individual' | 'team'; teamMin: number; teamMax: number
 }
 export interface Announcement {
   id: string; title: string; summary: string; content: string; date: string | null; category: string
@@ -52,7 +55,9 @@ export interface PastEvent {
 export interface Registration {
   id: string; eventId: string; eventTitle: string; studentName: string; studentEmail: string; studentRoll: string
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; createdAt: string
+  teamName: string; teamMembers: TeamMemberInput[]
 }
+export interface TeamMemberInput { name: string; roll: string; email?: string; department?: string; year?: string }
 
 export const toEvent = (r: EventRow): TSEvent => ({
   id: r.id, title: r.title, slug: r.slug, description: r.description ?? '', fullDescription: r.full_description ?? r.description ?? '',
@@ -61,6 +66,7 @@ export const toEvent = (r: EventRow): TSEvent => ({
   image: r.image ?? '', tags: r.tags ?? [], featured: r.featured, createdAt: r.created_at,
   endTime: r.end_time ?? '', registrationMode: (['form', 'external', 'closed'].includes(r.registration_mode ?? '') ? r.registration_mode : 'form') as TSEvent['registrationMode'],
   registrationUrl: r.registration_url ?? '', registrationDeadline: r.registration_deadline ?? null, gallery: r.gallery ?? [],
+  registrationKind: r.registration_kind === 'team' ? 'team' : 'individual', teamMin: r.team_min ?? 2, teamMax: r.team_max ?? 4,
 })
 export const fromEvent = (e: Partial<TSEvent>): Partial<EventRow> => strip({
   title: e.title, slug: e.slug, description: e.description, full_description: e.fullDescription, date: e.date, time: e.time,
@@ -68,6 +74,7 @@ export const fromEvent = (e: Partial<TSEvent>): Partial<EventRow> => strip({
   registered_count: e.registeredCount, speaker: e.speaker, image: e.image, tags: e.tags, featured: e.featured,
   end_time: e.endTime, registration_mode: e.registrationMode, registration_url: e.registrationUrl,
   registration_deadline: e.registrationDeadline || null, gallery: e.gallery,
+  registration_kind: e.registrationKind, team_min: e.teamMin, team_max: e.teamMax,
 })
 export const toAnnouncement = (r: AnnouncementRow): Announcement => ({
   id: r.id, title: r.title, summary: r.summary ?? '', content: r.content ?? '', date: r.date, category: r.category ?? 'General',
@@ -91,6 +98,7 @@ export const fromPastEvent = (p: Partial<PastEvent>): Partial<PastEventRow> => s
 export const toRegistration = (r: RegistrationRow): Registration => ({
   id: r.id, eventId: r.event_id, eventTitle: r.event_title, studentName: r.student_name, studentEmail: r.student_email,
   studentRoll: r.student_roll, department: r.department, year: r.year, status: r.status, createdAt: r.created_at,
+  teamName: r.team_name ?? '', teamMembers: r.team_members ?? [],
 })
 
 export const toTeam = (r: TeamRow): TeamMember => ({
@@ -158,15 +166,16 @@ export async function fetchSiteContent(): Promise<Record<string, unknown> | null
 /* ───────── Registration ───────── */
 export interface RegisterInput {
   eventId: string; name: string; email: string; roll: string; department: string; year: string
+  teamName?: string; members?: TeamMemberInput[]
 }
 export interface RegisterResult { success: boolean; status?: 'Confirmed' | 'Waitlisted'; message?: string; error?: string }
 
 const demoSeen = new Set<string>()
 export async function registerForEvent(i: RegisterInput): Promise<RegisterResult> {
   if (isDemo) {
-    const key = `${i.eventId}:${i.roll.trim().toUpperCase()}`
-    if (demoSeen.has(key)) return wait({ success: false, error: 'You have already registered for this event with this roll number.' }, 1200)
-    demoSeen.add(key)
+    const rolls = [i.roll, ...(i.members ?? []).map((m) => m.roll)].map((r) => `${i.eventId}:${r.trim().toUpperCase()}`)
+    if (rolls.some((k) => demoSeen.has(k))) return wait({ success: false, error: i.teamName !== undefined ? 'Someone on this team (or this email) is already registered for this event.' : 'You have already registered for this event with this roll number.' }, 1200)
+    rolls.forEach((k) => demoSeen.add(k))
     const ev = demoEvents.find((e) => e.id === i.eventId)
     const full = ev ? ev.capacity > 0 && ev.registeredCount >= ev.capacity : false
     if (ev && !full) ev.registeredCount += 1
@@ -175,6 +184,7 @@ export async function registerForEvent(i: RegisterInput): Promise<RegisterResult
   const { data, error } = await (await client()).rpc('register_for_event', {
     p_event_id: i.eventId, p_student_name: i.name.trim(), p_student_email: i.email.trim().toLowerCase(),
     p_student_roll: i.roll.trim().toUpperCase(), p_department: i.department, p_year: i.year,
+    ...(i.teamName !== undefined ? { p_team_name: i.teamName.trim(), p_members: i.members ?? [] } : {}),
   })
   if (error) return { success: false, error: error.message }
   return data as RegisterResult

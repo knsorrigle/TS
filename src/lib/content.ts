@@ -12,6 +12,7 @@ export interface SiteContent {
   sections: { events: string; eventsEmpty: string; bulletins: string; bulletinsSub: string; archive: string; archiveSub: string; team: string; teamSub: string }
   cta: { heading: string; body: string; primary: string; secondary: string }
   contact: { email: string; instagram: string; github: string; dept: string; college: string; city: string }
+  registration: { departments: string[]; years: string[] }
 }
 
 export const DEFAULT_CONTENT: SiteContent = {
@@ -65,6 +66,10 @@ export const DEFAULT_CONTENT: SiteContent = {
     dept: 'Computer Science & Engineering',
     college: 'Navkis College of Engineering',
     city: 'Hassan',
+  },
+  registration: {
+    departments: ['AIML', 'AIDS', 'CSE', 'CSE (Cybersecurity)', 'MCA', 'ECE', 'Civil'],
+    years: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
   },
 }
 

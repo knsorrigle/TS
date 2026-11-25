@@ -284,6 +284,7 @@ const demoRegs: Registration[] = (() => {
     studentName: n, studentEmail: `${n.split(' ')[0].toLowerCase()}@gmail.com`, studentRoll: `4NK2${i % 4}CS0${10 + i}`,
     department: depts[i % depts.length], year: `${(i % 4) + 1}${['st', 'nd', 'rd', 'th'][i % 4]} Year`,
     status: i === 7 ? 'Waitlisted' : 'Confirmed', createdAt: new Date(Date.now() - i * 3600_000).toISOString(),
+    teamName: i % 2 ? `Team ${['Kraken', 'Orca', 'Nautilus', 'Trident'][i % 4]}` : '', teamMembers: i % 2 ? [{ name: 'Member One', roll: `4NK24CS1${i}1`, department: 'AIML', year: '2nd Year' }, { name: 'Member Two', roll: `4NK24CS1${i}2`, department: 'CSE', year: '2nd Year' }] : [],
   }))
 })()
 
@@ -298,6 +299,7 @@ export async function addRegistration(r: Omit<Registration, 'id' | 'createdAt'>)
   const { error } = await (await db()).from('techspark_registrations').insert({
     event_id: r.eventId, event_title: r.eventTitle, student_name: r.studentName.trim(), student_email: r.studentEmail.trim().toLowerCase(),
     student_roll: r.studentRoll.trim().toUpperCase(), department: r.department, year: r.year, status: r.status,
+    team_name: r.teamName?.trim() || null, team_members: r.teamMembers ?? [],
   })
   if (error) throw new Error(error.code === '23505' ? 'That student (roll or email) is already registered for this event.' : error.message)
   done(undefined)

@@ -111,6 +111,13 @@ export function ContentTab() {
         </div>
       </Group>
 
+      <Group title="Registration form" note="The department and year choices students pick from (one per line).">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ListField label="Departments" value={c.registration.departments} onChange={(v) => up('registration', { departments: v })} rows={7} />
+          <ListField label="Years" value={c.registration.years} onChange={(v) => up('registration', { years: v })} rows={7} />
+        </div>
+      </Group>
+
       <Group title="Contact & links" note="Used in the footer, the closing section and calendar invites.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Email"><Input type="email" value={c.contact.email} onChange={(e) => up('contact', { email: e.target.value })} /></Field>

@@ -96,6 +96,10 @@ alter table public.techspark_events add column if not exists registration_mode t
 alter table public.techspark_events add column if not exists registration_url text;                          -- used when mode = external
 alter table public.techspark_events add column if not exists registration_deadline timestamptz;              -- registrations close after this
 alter table public.techspark_events add column if not exists gallery text[] not null default '{}';
+-- team events: registrations are per team (leader + members); capacity counts teams
+alter table public.techspark_events add column if not exists registration_kind text not null default 'individual'; -- individual | team
+alter table public.techspark_events add column if not exists team_min integer not null default 2;
+alter table public.techspark_events add column if not exists team_max integer not null default 4;
 
 -- ─────────────────────────────── Categories ───────────────────────────────
 create table if not exists public.techspark_categories (
@@ -180,17 +184,26 @@ create table if not exists public.techspark_registrations (
 create unique index if not exists uq_reg_event_email on public.techspark_registrations (event_id, lower(student_email));
 create unique index if not exists uq_reg_event_roll  on public.techspark_registrations (event_id, upper(student_roll));
 create index if not exists idx_reg_event_status on public.techspark_registrations (event_id, status, created_at);
+-- team registrations: the leader is the student_* columns; the rest of the team lives here
+alter table public.techspark_registrations add column if not exists team_name text;
+alter table public.techspark_registrations add column if not exists team_members jsonb not null default '[]'::jsonb; -- [{name, roll, email, department, year}]
+create index if not exists idx_reg_team_members on public.techspark_registrations using gin (team_members);
 
 -- ─────────────────────────────── RPC: register_for_event ───────────────────────────────
--- Atomic: locks the event row, checks duplicates and capacity, inserts Confirmed or Waitlisted,
--- and bumps registered_count. The only way anon can write a registration.
+-- Atomic: locks the event row, validates, checks duplicates and capacity, inserts Confirmed or Waitlisted.
+-- Individual events: one student. Team events: the caller is the leader; p_team_name + p_members (the rest).
+-- Nobody can appear twice for the same event — as a leader or as a member of any team.
+-- The only way anon can write a registration. (registered_count is maintained by trg_registration_count.)
+drop function if exists public.register_for_event(uuid, text, text, text, text, text);
 create or replace function public.register_for_event(
   p_event_id      uuid,
   p_student_name  text,
   p_student_email text,
   p_student_roll  text,
   p_department    text,
-  p_year          text
+  p_year          text,
+  p_team_name     text  default null,
+  p_members       jsonb default '[]'::jsonb
 )
 returns json
 language plpgsql
@@ -203,10 +216,18 @@ declare
   v_name    text := btrim(coalesce(p_student_name, ''));
   v_email   text := lower(btrim(coalesce(p_student_email, '')));
   v_roll    text := upper(regexp_replace(coalesce(p_student_roll, ''), '\s', '', 'g'));
+  v_team    text := nullif(btrim(coalesce(p_team_name, '')), '');
+  v_members jsonb := coalesce(p_members, '[]'::jsonb);
+  v_rolls   text[];
+  v_size    int;
+  v_is_team boolean;
 begin
   if length(v_name) < 2 or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]{2,}$' or length(v_roll) < 4
      or coalesce(p_department, '') = '' or coalesce(p_year, '') = '' then
     return json_build_object('success', false, 'error', 'Please fill in every field with valid details.');
+  end if;
+  if jsonb_typeof(v_members) <> 'array' then
+    return json_build_object('success', false, 'error', 'Team members were sent in an unexpected format.');
   end if;
 
   select * into v_event from public.techspark_events
@@ -227,11 +248,61 @@ begin
     return json_build_object('success', false, 'error', 'This event takes registrations through its own link.');
   end if;
 
+  v_is_team := v_event.registration_kind = 'team';
+  if v_is_team then
+    if v_team is null or length(v_team) < 2 then
+      return json_build_object('success', false, 'error', 'Give your team a name.');
+    end if;
+    v_size := 1 + jsonb_array_length(v_members);
+    if v_size < v_event.team_min or v_size > v_event.team_max then
+      return json_build_object('success', false, 'error',
+        format('Teams for this event need %s–%s people, including you.', v_event.team_min, v_event.team_max));
+    end if;
+    if exists (
+      select 1 from jsonb_array_elements(v_members) e
+      where length(btrim(coalesce(e->>'name', ''))) < 2
+         or length(regexp_replace(coalesce(e->>'roll', ''), '\s', '', 'g')) < 4
+    ) then
+      return json_build_object('success', false, 'error', 'Fill in every team member’s name and roll number.');
+    end if;
+    -- normalise members
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'name', btrim(e->>'name'),
+             'roll', upper(regexp_replace(e->>'roll', '\s', '', 'g')),
+             'email', lower(btrim(coalesce(e->>'email', ''))),
+             'department', coalesce(e->>'department', ''),
+             'year', coalesce(e->>'year', '')
+           )), '[]'::jsonb)
+      into v_members
+      from jsonb_array_elements(v_members) e;
+  else
+    v_team := null;
+    v_members := '[]'::jsonb;
+  end if;
+
+  v_rolls := array[v_roll] || coalesce((select array_agg(e->>'roll') from jsonb_array_elements(v_members) e), '{}'::text[]);
+  if (select count(distinct r) from unnest(v_rolls) r) <> cardinality(v_rolls) then
+    return json_build_object('success', false, 'error', 'The same roll number appears twice in your team.');
+  end if;
+
   if exists (
-    select 1 from public.techspark_registrations
-    where event_id = p_event_id and (lower(student_email) = v_email or upper(student_roll) = v_roll)
+    select 1 from public.techspark_registrations r
+    where r.event_id = p_event_id
+      and (lower(r.student_email) = v_email
+           or upper(r.student_roll) = any(v_rolls)
+           or exists (select 1 from jsonb_array_elements(r.team_members) x where upper(x->>'roll') = any(v_rolls)))
   ) then
-    return json_build_object('success', false, 'error', 'You have already registered for this event with this roll number or email.');
+    return json_build_object('success', false, 'error',
+      case when v_is_team
+        then 'Someone on this team (or this email) is already registered for this event.'
+        else 'You have already registered for this event with this roll number or email.' end);
+  end if;
+
+  if v_is_team and exists (
+    select 1 from public.techspark_registrations r
+    where r.event_id = p_event_id and lower(r.team_name) = lower(v_team)
+  ) then
+    return json_build_object('success', false, 'error', 'That team name is already taken for this event — pick another.');
   end if;
 
   if v_event.capacity > 0 and v_event.registered_count >= v_event.capacity then
@@ -241,23 +312,25 @@ begin
   end if;
 
   insert into public.techspark_registrations
-    (event_id, event_title, student_name, student_email, student_roll, department, year, status)
+    (event_id, event_title, student_name, student_email, student_roll, department, year, status, team_name, team_members)
   values
-    (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status);
-  -- registered_count is maintained by trg_registration_count
+    (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status, v_team, v_members);
 
   return json_build_object(
     'success', true,
     'status', v_status,
-    'message', case when v_status = 'Confirmed' then 'Your seat has been reserved.' else 'Added to the waitlist.' end
+    'message', case
+      when v_status = 'Confirmed' and v_is_team then 'Your team’s spot is reserved.'
+      when v_status = 'Confirmed' then 'Your seat has been reserved.'
+      else 'Added to the waitlist.' end
   );
 exception
   when unique_violation then
     return json_build_object('success', false, 'error', 'You have already registered for this event with this roll number or email.');
 end;
 $$;
-revoke all on function public.register_for_event(uuid, text, text, text, text, text) from public;
-grant execute on function public.register_for_event(uuid, text, text, text, text, text) to anon, authenticated;
+revoke all on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb) from public;
+grant execute on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb) to anon, authenticated;
 
 -- Seat accounting lives in one trigger, so the RPC, admin inserts, status edits and deletes all stay consistent.
 --   insert Confirmed → +1 · status Waitlisted→Confirmed → +1 · Confirmed→Waitlisted → −1
