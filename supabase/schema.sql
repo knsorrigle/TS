@@ -100,6 +100,13 @@ alter table public.techspark_events add column if not exists gallery text[] not 
 alter table public.techspark_events add column if not exists registration_kind text not null default 'individual'; -- individual | team
 alter table public.techspark_events add column if not exists team_min integer not null default 2;
 alter table public.techspark_events add column if not exists team_max integer not null default 4;
+-- paid events: the student pays by UPI, then pastes the 12-digit UTR; the registration is only created with one
+alter table public.techspark_events add column if not exists payment_required boolean not null default false;
+alter table public.techspark_events add column if not exists entry_fee integer not null default 0;   -- ₹ per registration (per team for team events)
+alter table public.techspark_events add column if not exists upi_id text;
+alter table public.techspark_events add column if not exists upi_name text;
+alter table public.techspark_events add column if not exists payment_qr text;                        -- image URL of the UPI QR
+alter table public.techspark_events add column if not exists payment_note text;
 
 -- ─────────────────────────────── Categories ───────────────────────────────
 create table if not exists public.techspark_categories (
@@ -188,13 +195,22 @@ create index if not exists idx_reg_event_status on public.techspark_registration
 alter table public.techspark_registrations add column if not exists team_name text;
 alter table public.techspark_registrations add column if not exists team_members jsonb not null default '[]'::jsonb; -- [{name, roll, email, department, year}]
 create index if not exists idx_reg_team_members on public.techspark_registrations using gin (team_members);
+-- UPI payment: the transaction reference the student pasted, what they were asked to pay, and whether an admin checked it
+alter table public.techspark_registrations add column if not exists payment_utr text;
+alter table public.techspark_registrations add column if not exists payment_amount integer;
+alter table public.techspark_registrations add column if not exists payment_verified boolean not null default false;
+-- one UTR pays for one registration, across every event
+create unique index if not exists uq_reg_payment_utr on public.techspark_registrations (payment_utr) where payment_utr is not null;
 
 -- ─────────────────────────────── RPC: register_for_event ───────────────────────────────
 -- Atomic: locks the event row, validates, checks duplicates and capacity, inserts Confirmed or Waitlisted.
 -- Individual events: one student. Team events: the caller is the leader; p_team_name + p_members (the rest).
 -- Nobody can appear twice for the same event — as a leader or as a member of any team.
 -- The only way anon can write a registration. (registered_count is maintained by trg_registration_count.)
+-- Paid events: p_utr is required (12 digits, never used before) and a full event refuses before anyone pays twice.
+-- Returns the new registration's id: the student's device keeps it as a private receipt (see registration_status).
 drop function if exists public.register_for_event(uuid, text, text, text, text, text);
+drop function if exists public.register_for_event(uuid, text, text, text, text, text, text, jsonb);
 create or replace function public.register_for_event(
   p_event_id      uuid,
   p_student_name  text,
@@ -203,7 +219,8 @@ create or replace function public.register_for_event(
   p_department    text,
   p_year          text,
   p_team_name     text  default null,
-  p_members       jsonb default '[]'::jsonb
+  p_members       jsonb default '[]'::jsonb,
+  p_utr           text  default null
 )
 returns json
 language plpgsql
@@ -221,6 +238,9 @@ declare
   v_rolls   text[];
   v_size    int;
   v_is_team boolean;
+  v_paid    boolean;
+  v_utr     text := nullif(regexp_replace(coalesce(p_utr, ''), '\s', '', 'g'), '');
+  v_id      uuid;
 begin
   if length(v_name) < 2 or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]{2,}$' or length(v_roll) < 4
      or coalesce(p_department, '') = '' or coalesce(p_year, '') = '' then
@@ -305,19 +325,47 @@ begin
     return json_build_object('success', false, 'error', 'That team name is already taken for this event — pick another.');
   end if;
 
+  v_paid := v_event.payment_required and v_event.entry_fee > 0;
+
   if v_event.capacity > 0 and v_event.registered_count >= v_event.capacity then
+    if v_paid then
+      -- no waitlist for paid events: nobody should pay for a seat that may never come
+      return json_build_object('success', false, 'full', true, 'error', case when v_utr is null
+        then 'This event just filled up — please don’t pay.'
+        else 'This event filled up while you were paying, so your registration couldn’t be saved. Contact the club with your UTR for a refund.' end);
+    end if;
     v_status := 'Waitlisted';
   else
     v_status := 'Confirmed';
   end if;
 
+  if v_paid then
+    if v_utr is null then
+      -- every other check passed: the form calls this first, so nobody pays and then finds a problem
+      return json_build_object('success', false, 'needs_payment', true, 'amount', v_event.entry_fee,
+        'error', 'Pay the entry fee, then enter the 12-digit UTR from your payment.');
+    end if;
+    if v_utr !~ '^[0-9]{12}$' then
+      return json_build_object('success', false, 'error', 'A UTR is exactly 12 digits — check your UPI app’s payment details.');
+    end if;
+    if exists (select 1 from public.techspark_registrations r where r.payment_utr = v_utr) then
+      return json_build_object('success', false, 'error', 'That UTR has already been used for a registration. Check the number, or contact the club.');
+    end if;
+  else
+    v_utr := null;
+  end if;
+
   insert into public.techspark_registrations
-    (event_id, event_title, student_name, student_email, student_roll, department, year, status, team_name, team_members)
+    (event_id, event_title, student_name, student_email, student_roll, department, year, status, team_name, team_members,
+     payment_utr, payment_amount)
   values
-    (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status, v_team, v_members);
+    (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status, v_team, v_members,
+     v_utr, case when v_paid then v_event.entry_fee end)
+  returning id into v_id;
 
   return json_build_object(
     'success', true,
+    'id', v_id,
     'status', v_status,
     'message', case
       when v_status = 'Confirmed' and v_is_team then 'Your team’s spot is reserved.'
@@ -326,11 +374,34 @@ begin
   );
 exception
   when unique_violation then
-    return json_build_object('success', false, 'error', 'You have already registered for this event with this roll number or email.');
+    declare v_constraint text;
+    begin
+      get stacked diagnostics v_constraint = constraint_name;
+      if v_constraint = 'uq_reg_payment_utr' then
+        return json_build_object('success', false, 'error', 'That UTR has already been used for a registration. Check the number, or contact the club.');
+      end if;
+      return json_build_object('success', false, 'error', 'You have already registered for this event with this roll number or email.');
+    end;
 end;
 $$;
-revoke all on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb) from public;
-grant execute on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb) to anon, authenticated;
+revoke all on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text) from public;
+grant execute on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text) to anon, authenticated;
+
+-- ─────────────────────────────── RPC: registration_status ───────────────────────────────
+-- A student's device asks "is my registration still there?" with the id it got back when registering.
+-- The id is a random uuid only that device knows, and the answer is just a status word — no personal details.
+-- 'Removed' when an admin deleted it, so the site shows the Register button again.
+create or replace function public.registration_status(p_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select status from public.techspark_registrations where id = p_id), 'Removed');
+$$;
+revoke all on function public.registration_status(uuid) from public;
+grant execute on function public.registration_status(uuid) to anon, authenticated;
 
 -- Seat accounting lives in one trigger, so the RPC, admin inserts, status edits and deletes all stay consistent.
 --   insert Confirmed → +1 · status Waitlisted→Confirmed → +1 · Confirmed→Waitlisted → −1

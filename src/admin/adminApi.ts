@@ -4,7 +4,7 @@ import {
   isDemo, toTeam, fromTeam, type TeamMember, type TeamRow, toEvent, fromEvent, toAnnouncement, fromAnnouncement, toPastEvent, fromPastEvent, toRegistration,
   type TSEvent, type Announcement, type PastEvent, type Registration, type EventRow, type AnnouncementRow, type PastEventRow, type RegistrationRow,
 } from '../lib/api'
-import { demoEvents, demoAnnouncements, demoPastEvents, demoTeam, demoSite } from '../lib/demo'
+import { demoEvents, demoAnnouncements, demoPastEvents, demoTeam, demoSite, demoStoredRegs, saveDemoStoredRegs } from '../lib/demo'
 import { mergeContent, type SiteContent } from '../lib/content'
 
 export { isDemo }
@@ -285,11 +285,12 @@ const demoRegs: Registration[] = (() => {
     department: depts[i % depts.length], year: `${(i % 4) + 1}${['st', 'nd', 'rd', 'th'][i % 4]} Year`,
     status: i === 7 ? 'Waitlisted' : 'Confirmed', createdAt: new Date(Date.now() - i * 3600_000).toISOString(),
     teamName: i % 2 ? `Team ${['Kraken', 'Orca', 'Nautilus', 'Trident'][i % 4]}` : '', teamMembers: i % 2 ? [{ name: 'Member One', roll: `4NK24CS1${i}1`, department: 'AIML', year: '2nd Year' }, { name: 'Member Two', roll: `4NK24CS1${i}2`, department: 'CSE', year: '2nd Year' }] : [],
+    paymentUtr: i % 2 ? `5021${String(48213907 + i * 7919).padStart(8, '0')}` : '', paymentAmount: i % 2 ? 200 : null, paymentVerified: i === 1,
   }))
 })()
 
 export async function listRegistrations(): Promise<Registration[]> {
-  if (isDemo) return [...demoRegs]
+  if (isDemo) return [...demoStoredRegs(), ...demoRegs]
   const { data, error } = await (await db()).from('techspark_registrations').select('*').order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return (data as RegistrationRow[]).map(toRegistration)
@@ -300,18 +301,38 @@ export async function addRegistration(r: Omit<Registration, 'id' | 'createdAt'>)
     event_id: r.eventId, event_title: r.eventTitle, student_name: r.studentName.trim(), student_email: r.studentEmail.trim().toLowerCase(),
     student_roll: r.studentRoll.trim().toUpperCase(), department: r.department, year: r.year, status: r.status,
     team_name: r.teamName?.trim() || null, team_members: r.teamMembers ?? [],
+    payment_utr: r.paymentUtr ? r.paymentUtr.replace(/\s/g, '') : null, payment_amount: r.paymentAmount ?? null, payment_verified: r.paymentVerified ?? false,
   })
-  if (error) throw new Error(error.code === '23505' ? 'That student (roll or email) is already registered for this event.' : error.message)
+  if (error) throw new Error(error.code === '23505'
+    ? (error.message.includes('payment_utr') ? 'That UTR is already used by another registration.' : 'That student (roll or email) is already registered for this event.')
+    : error.message)
   done(undefined)
 }
 export async function setRegistrationStatus(id: string, status: 'Confirmed' | 'Waitlisted') {
-  if (isDemo) { const r = demoRegs.find((x) => x.id === id); if (r) r.status = status; return done(undefined) }
-  const { error } = await (await db()).from('techspark_registrations').update({ status }).eq('id', id)
+  return updateRegistration(id, { status })
+}
+/** Admin ticks a payment off against the bank statement (or unticks it). */
+export async function setPaymentVerified(id: string, verified: boolean) {
+  return updateRegistration(id, { payment_verified: verified })
+}
+async function updateRegistration(id: string, patch: { status?: 'Confirmed' | 'Waitlisted'; payment_verified?: boolean }) {
+  if (isDemo) {
+    const apply = (r: Registration) => { if (patch.status) r.status = patch.status; if (patch.payment_verified !== undefined) r.paymentVerified = patch.payment_verified }
+    const stored = demoStoredRegs(); const s = stored.find((x) => x.id === id)
+    if (s) { apply(s); saveDemoStoredRegs(stored) } else { const r = demoRegs.find((x) => x.id === id); if (r) apply(r) }
+    return done(undefined)
+  }
+  const { error } = await (await db()).from('techspark_registrations').update(patch).eq('id', id)
   if (error) throw new Error(error.message)
   done(undefined)
 }
 export async function deleteRegistration(id: string) {
-  if (isDemo) { demoRegs.splice(demoRegs.findIndex((r) => r.id === id), 1); return done(undefined) }
+  if (isDemo) {
+    const stored = demoStoredRegs()
+    if (stored.some((r) => r.id === id)) saveDemoStoredRegs(stored.filter((r) => r.id !== id))
+    else demoRegs.splice(demoRegs.findIndex((r) => r.id === id), 1)
+    return done(undefined)
+  }
   const { error } = await (await db()).from('techspark_registrations').delete().eq('id', id)
   if (error) throw new Error(error.message)
   done(undefined)

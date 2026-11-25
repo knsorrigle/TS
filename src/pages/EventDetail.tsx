@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, CalendarPlus, Clock, MapPin, Mic2, Share2, RotateCw, Users } from 'lucide-react'
+import { ArrowLeft, CalendarPlus, Clock, IndianRupee, MapPin, Mic2, Share2, RotateCw, Users } from 'lucide-react'
 import { teamRange } from '../lib/status'
-import { fetchEventBySlug } from '../lib/api'
+import { fetchEventBySlug, isPaid } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
 import { CATEGORY_META, categoryKey } from '../lib/site'
@@ -78,6 +78,7 @@ export function EventDetail() {
                   {e.location && <div className="flex gap-3"><dt className="sr-only">Venue</dt><MapPin size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">{e.location}</dd></div>}
                   {e.speaker && <div className="flex gap-3"><dt className="sr-only">Speaker</dt><Mic2 size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">{e.speaker}</dd></div>}
                   {e.registrationKind === 'team' && <div className="flex gap-3"><dt className="sr-only">Team size</dt><Users size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">Team event · {teamRange(e)} people per team</dd></div>}
+                  {isPaid(e) && <div className="flex gap-3"><dt className="sr-only">Entry fee</dt><IndianRupee size={17} className="mt-0.5 shrink-0 text-mute-hi" aria-hidden /><dd className="text-frost">Entry ₹{e.entryFee}{e.registrationKind === 'team' ? ' per team' : ''} · paid by UPI while registering</dd></div>}
                 </dl>
                 {start && ms > 0 && (
                   <p className="mt-6 border-t border-line pt-5"><span className="t-meta block">Starts in</span><span className="t-num mt-1 block text-[26px] font-[500] tracking-[-0.02em] text-white">{formatCountdown(ms)}</span></p>

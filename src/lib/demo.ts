@@ -2,7 +2,7 @@
  * Dev-only fixtures, used when running `npm run dev` without Supabase keys so every section,
  * state and flow can be designed and tested. Never used in production builds.
  */
-import type { Announcement, PastEvent, TSEvent, TeamMember } from './api'
+import type { Announcement, PastEvent, Registration, TSEvent, TeamMember } from './api'
 
 const day = (offset: number) => {
   const d = new Date()
@@ -10,6 +10,8 @@ const day = (offset: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const now = new Date().toISOString()
+
+const FREE = { paymentRequired: false, entryFee: 0, upiId: '', upiName: '', paymentQr: '', paymentNote: '' }
 
 export const demoEvents: TSEvent[] = [
   {
@@ -19,37 +21,38 @@ export const demoEvents: TSEvent[] = [
     date: day(1), time: '6:00 PM', location: 'CSE Block, Lab 3', category: 'Technical', status: 'Open',
     capacity: 120, registeredCount: 108, speaker: 'Faculty mentors & alumni', image: '', tags: ['Hackathon', 'Teams', 'Overnight'], createdAt: now,
     endTime: '6:00 PM (next day)', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'team', teamMin: 2, teamMax: 4,
+    paymentRequired: true, entryFee: 200, upiId: 'vijayraghavendram18@okhdfcbank', upiName: 'Vijayaraghavendra M', paymentQr: '/payments/cryptic-clue-upi.webp', paymentNote: 'One payment per team.',
   },
   {
     id: 'demo-2', slug: 'git-good-workshop', title: 'Git Good: Version Control Workshop', featured: false, published: true,
     description: 'Branches, merges and pull requests without the panic. Hands-on, laptops required.',
     fullDescription: 'A practical two-hour workshop on Git and GitHub for first and second years.', date: day(6), time: '2:00 PM',
     location: 'Seminar Hall 1', category: 'Technical', status: 'Open', capacity: 60, registeredCount: 22, speaker: 'TECHSPARK leads',
-    image: '', tags: ['Workshop', 'Git'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4,
+    image: '', tags: ['Workshop', 'Git'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, ...FREE,
   },
   {
     id: 'demo-3', slug: 'campus-quiz-night', title: 'Campus Quiz Night', featured: false, published: true,
     description: 'General knowledge, tech trivia and one very hard picture round. Teams of three.',
     fullDescription: 'Five rounds, one winner, no phones.', date: day(11), time: '5:30 PM', location: 'Main Auditorium',
     category: 'Non-Technical', status: 'Open', capacity: 90, registeredCount: 90, speaker: 'Quizmaster: TBA', image: '',
-    tags: ['Quiz', 'Teams of 3'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4,
+    tags: ['Quiz', 'Teams of 3'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, ...FREE,
   },
   {
     id: 'demo-4', slug: 'design-showcase', title: 'Design Showcase: Posters & Interfaces', featured: false, published: true,
     description: 'Show your best poster, app screen or brand work. Feedback from the panel, prizes for the top three.',
     fullDescription: 'Open to every department.', date: day(17), time: '11:00 AM', location: 'Library Foyer', category: 'Non-Technical',
-    status: 'Open', capacity: 0, registeredCount: 14, speaker: '', image: '', tags: ['Design', 'Showcase'], createdAt: now, endTime: '', registrationMode: 'external', registrationUrl: 'https://forms.gle/example', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4,
+    status: 'Open', capacity: 0, registeredCount: 14, speaker: '', image: '', tags: ['Design', 'Showcase'], createdAt: now, endTime: '', registrationMode: 'external', registrationUrl: 'https://forms.gle/example', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, ...FREE,
   },
   {
     id: 'demo-5', slug: 'game-night-mixer', title: 'Game Night Mixer', featured: false, published: true,
     description: 'Board games, a FIFA bracket and too much pizza. Come alone, leave with a squad.',
     fullDescription: 'Our end-of-month social.', date: day(23), time: '6:30 PM', location: 'Student Lounge', category: 'Fun & Social',
-    status: 'Open', capacity: 80, registeredCount: 31, speaker: '', image: '', tags: ['Games', 'Social'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4,
+    status: 'Open', capacity: 80, registeredCount: 31, speaker: '', image: '', tags: ['Games', 'Social'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, ...FREE,
   },
   {
     id: 'demo-6', slug: 'intro-to-linux', title: 'Intro to Linux (closed)', featured: false, published: true,
     description: 'The terminal, demystified.', fullDescription: 'Registrations for this session are closed.', date: day(-4), time: '3:00 PM',
-    location: 'Lab 2', category: 'Technical', status: 'Closed', capacity: 40, registeredCount: 40, speaker: '', image: '', tags: ['Linux'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4,
+    location: 'Lab 2', category: 'Technical', status: 'Closed', capacity: 40, registeredCount: 40, speaker: '', image: '', tags: ['Linux'], createdAt: now, endTime: '', registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, ...FREE,
   },
 ]
 
@@ -74,3 +77,12 @@ export const demoTeam: TeamMember[] = [
 
 /** Dev only: site content overrides live in memory (admin "Site content" tab edits this). */
 export const demoSite: { value: Record<string, unknown> | null } = { value: null }
+
+/** Demo registrations made through the public form, shared with the demo admin (same browser) via localStorage. */
+const DEMO_REGS = 'ts_demo_regs'
+export function demoStoredRegs(): Registration[] {
+  try { return JSON.parse(localStorage.getItem(DEMO_REGS) || '[]') } catch { return [] }
+}
+export function saveDemoStoredRegs(regs: Registration[]) {
+  try { localStorage.setItem(DEMO_REGS, JSON.stringify(regs)) } catch { /* private mode */ }
+}

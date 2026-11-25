@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Check, X, CalendarPlus, Share2, ChevronDown, Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react'
-import { registerForEvent, type TSEvent } from '../lib/api'
+import { Check, X, CalendarPlus, Share2, ChevronDown, Loader2, AlertCircle, Plus, Trash2, Copy, ArrowLeft, Download } from 'lucide-react'
+import { registerForEvent, isPaid, cleanUtr, UTR_RE, type TSEvent } from '../lib/api'
 import { useContent } from '../lib/content'
 import { teamRange } from '../lib/status'
 import { closeRegister, useRegisterTarget } from '../lib/registerStore'
@@ -58,7 +58,9 @@ function validateTeam(teamName: string, mates: Mate[], leaderRoll: string): { te
 type Phase =
   | { kind: 'form' }
   | { kind: 'submitting' }
-  | { kind: 'done'; status: 'Confirmed' | 'Waitlisted'; name: string; team?: string }
+  | { kind: 'pay'; amount: number }
+  | { kind: 'paying'; amount: number }
+  | { kind: 'done'; status: 'Confirmed' | 'Waitlisted'; name: string; team?: string; utr?: string; amount?: number }
   | { kind: 'duplicate' }
 
 export function RegisterModal() {
@@ -95,8 +97,12 @@ function Sheet({ event }: { event: TSEvent }) {
   const meta = CATEGORY_META[categoryKey(event.category)]
   const closing = useRef(false)
 
+  const [utr, setUtr] = useState('')
+  const paid = isPaid(event)
+
   const close = () => {
-    if (closing.current || phase.kind === 'submitting') return
+    if (closing.current || phase.kind === 'submitting' || phase.kind === 'paying') return
+    if (phase.kind === 'pay' && !confirm('Leave without finishing? If you already paid, stay and enter the UTR — your registration isn’t saved until you do.')) return
     closing.current = true
     const done = () => { closeRegister(); returnFocus.current?.focus?.({ preventScroll: true }) }
     if (reducedMotion()) return done()
@@ -149,37 +155,44 @@ function Sheet({ event }: { event: TSEvent }) {
       target?.focus()
       return
     }
-    setPhase({ kind: 'submitting' })
+    // paid events: this first call checks every detail without saving, so nobody pays and then hits a problem
+    await send()
+  }
+
+  /** One trip to the database. Without a UTR on a paid event it only checks; with one it registers. */
+  const send = async (withUtr?: string) => {
+    const back: Phase = withUtr !== undefined ? { kind: 'pay', amount: event.entryFee } : { kind: 'form' }
+    setPhase(withUtr !== undefined ? { kind: 'paying', amount: event.entryFee } : { kind: 'submitting' })
     setServerError('')
     try {
       const res = await registerForEvent({
         eventId: event.id, ...values,
         ...(isTeam ? { teamName: teamName.trim(), members: mates.map((m) => ({ name: m.name.trim(), roll: m.roll.trim().toUpperCase(), department: m.department, year: m.year })) } : {}),
+        ...(withUtr !== undefined ? { utr: withUtr } : {}),
       })
       if (res.success && res.status) {
-        setLocalReg(event.id, { status: res.status, at: Date.now(), name: values.name.trim() })
+        setLocalReg(event.id, { status: res.status, at: Date.now(), name: values.name.trim(), id: res.id })
         try { localStorage.setItem('ts_last_student', JSON.stringify(values)) } catch { /* ignore */ }
         notifyDataUpdated()
         if (res.status === 'Confirmed') flareSpark(1)
-        setPhase({ kind: 'done', status: res.status, name: values.name.trim().split(' ')[0], team: isTeam ? teamName.trim() : undefined })
+        setPhase({ kind: 'done', status: res.status, name: values.name.trim().split(' ')[0], team: isTeam ? teamName.trim() : undefined,
+          ...(withUtr !== undefined ? { utr: cleanUtr(withUtr), amount: event.entryFee } : {}) })
         return
       }
+      if (res.needs_payment) { setPhase({ kind: 'pay', amount: res.amount ?? event.entryFee }); return }
       const msg = res.error || res.message || 'Registration failed. Please try again.'
-      if (/already|duplicate|exists/i.test(msg)) {
-        setLocalReg(event.id, { status: 'Confirmed', at: Date.now(), name: values.name.trim() })
-        setPhase({ kind: 'duplicate' })
-        return
-      }
+      if (/already registered/i.test(msg)) { setPhase({ kind: 'duplicate' }); return }
+      if (res.full) notifyDataUpdated()
       setServerError(msg)
-      setPhase({ kind: 'form' })
+      setPhase(res.full ? { kind: 'form' } : back)
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Network error. Check your connection and try again.')
-      setPhase({ kind: 'form' })
-      toast.error('Couldn’t reach the server. Your details are still here.')
+      setPhase(back)
+      toast.error(withUtr !== undefined ? 'Couldn’t reach the server. Your UTR is still here — try again.' : 'Couldn’t reach the server. Your details are still here.')
     }
   }
 
-  const busy = phase.kind === 'submitting'
+  const busy = phase.kind === 'submitting' || phase.kind === 'paying'
 
   return (
     <div ref={root} className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center" role="presentation">
@@ -258,15 +271,21 @@ function Sheet({ event }: { event: TSEvent }) {
               )}
 
               <button type="submit" disabled={busy} aria-busy={busy} className="pill pill--solid relative mt-3 !h-[54px] w-full !text-[15px] disabled:!opacity-100">
-                {busy ? <><Loader2 size={16} className="animate-spin" /> {isTeam ? 'Registering your team…' : 'Reserving your seat…'}</> : isTeam ? `Register team (${mates.length + 1})` : 'Reserve my seat'}
+                {busy ? <><Loader2 size={16} className="animate-spin" /> {paid ? 'Checking your details…' : isTeam ? 'Registering your team…' : 'Reserving your seat…'}</> : paid ? `Continue to payment · ₹${event.entryFee}` : isTeam ? `Register team (${mates.length + 1})` : 'Reserve my seat'}
                 {busy && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left animate-[progress_1.6s_var(--ease-quart)_infinite] bg-black/50" />}
               </button>
-              <p className="pt-1 text-center text-[12.5px] text-mute">{isTeam ? 'Each student can be on one team. Everyone brings their student ID.' : 'One registration per student. Bring your student ID.'}</p>
+              <p className="pt-1 text-center text-[12.5px] text-mute">{paid ? `Entry fee ₹${event.entryFee}${isTeam ? ' per team' : ''}, paid by UPI on the next step. ` : ''}{isTeam ? 'Each student can be on one team. Everyone brings their student ID.' : 'One registration per student. Bring your student ID.'}</p>
             </form>
           )}
 
-          {phase.kind === 'done' && <Success event={event} status={phase.status} name={phase.name} team={phase.team} onClose={close} />}
-          {phase.kind === 'duplicate' && <Duplicate event={event} onClose={close} onAgain={() => { setValues(EMPTY); setTouched({}); setTeamName(''); setMates(Array.from({ length: minMates }, () => ({ ...EMPTY_MATE }))); setSubmitted(false); setPhase({ kind: 'form' }) }} />}
+          {(phase.kind === 'pay' || phase.kind === 'paying') && (
+            <PayStep event={event} amount={phase.amount} who={isTeam ? teamName.trim() : values.name.trim()} isTeam={isTeam} utr={utr}
+              onUtr={(v) => { setUtr(v); setServerError('') }} error={serverError} busy={busy}
+              onBack={() => { setServerError(''); setPhase({ kind: 'form' }) }} onSubmit={() => send(utr)} />
+          )}
+
+          {phase.kind === 'done' && <Success event={event} status={phase.status} name={phase.name} team={phase.team} utr={phase.utr} amount={phase.amount} onClose={close} />}
+          {phase.kind === 'duplicate' && <Duplicate event={event} onClose={close} onAgain={() => { setValues(EMPTY); setTouched({}); setTeamName(''); setMates(Array.from({ length: minMates }, () => ({ ...EMPTY_MATE }))); setSubmitted(false); setUtr(''); setPhase({ kind: 'form' }) }} />}
         </div>
       </div>
     </div>
@@ -318,7 +337,7 @@ function FieldError({ id, msg }: { id: string; msg?: string }) {
 }
 
 /** The gradient condenses into a single point of light, and the confirmation unfolds from it. */
-function Success({ event, status, name, team, onClose }: { event: TSEvent; status: 'Confirmed' | 'Waitlisted'; name: string; team?: string; onClose: () => void }) {
+function Success({ event, status, name, team, utr, amount, onClose }: { event: TSEvent; status: 'Confirmed' | 'Waitlisted'; name: string; team?: string; utr?: string; amount?: number; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const confirmed = status === 'Confirmed'
   useLayoutEffect(() => {
@@ -339,6 +358,7 @@ function Success({ event, status, name, team, onClose }: { event: TSEvent; statu
       <p data-unfold className="t-meta mt-6">{confirmed ? (team ? 'Team registered' : 'Seat reserved') : 'On the waitlist'}</p>
       <h3 data-unfold className="t-h1 mt-3 text-[clamp(34px,4.8vw,50px)]">{team ? (confirmed ? `${team} is in.` : `Hang tight, ${team}.`) : confirmed ? `You’re in, ${name}.` : `Hang tight, ${name}.`}</h3>
       <p data-unfold className="t-body mx-auto mt-3 max-w-[40ch]">
+        {utr ? 'Your UTR is saved with your registration; the club matches every payment against its UPI account. ' : ''}
         {confirmed
           ? team ? 'Your team’s spot is reserved. Everyone checks in at the entrance with their student ID.' : 'Your seat has been reserved. Check in at the entrance with your student ID.'
           : 'Event capacity is currently reached. If a seat opens up, you will be notified in order of registration.'}
@@ -348,6 +368,9 @@ function Success({ event, status, name, team, onClose }: { event: TSEvent; statu
         {[['Date', formatDateShort(event.date)], ['Time', event.time || 'TBA'], ['Venue', event.location || 'TBA'], ['Status', status]].map(([k, v]) => (
           <div key={k} className="bg-ink px-4 py-3"><dt className="t-meta">{k}</dt><dd className="mt-1 text-[14px] text-frost">{v}</dd></div>
         ))}
+        {utr && (
+          <div className="col-span-2 bg-ink px-4 py-3"><dt className="t-meta">Paid ₹{amount} · UTR</dt><dd className="t-num mt-1 text-[14px] tracking-[0.04em] text-frost">{utr.replace(/(\d{4})(?=\d)/g, '$1 ')}</dd></div>
+        )}
       </dl>
 
       <div data-unfold className="mt-7 grid gap-2 sm:grid-cols-2">
@@ -372,5 +395,78 @@ function Duplicate({ event, onClose, onAgain }: { event: TSEvent; onClose: () =>
       <button type="button" onClick={onClose} className="pill pill--solid mt-4 w-full">Got it</button>
       <button type="button" onClick={onAgain} className="mt-4 text-[13.5px] text-mute-hi underline decoration-line-strong underline-offset-4 transition-colors hover:text-frost">Registering a friend on this phone?</button>
     </div>
+  )
+}
+
+/** Step two for paid events: the QR, the UPI ID, a one-tap UPI link on phones, and the UTR box. */
+function PayStep({ event, amount, who, isTeam, utr, onUtr, error, busy, onBack, onSubmit }: {
+  event: TSEvent; amount: number; who: string; isTeam: boolean; utr: string; onUtr: (v: string) => void
+  error: string; busy: boolean; onBack: () => void; onSubmit: () => void
+}) {
+  const [touched, setTouched] = useState(false)
+  const digits = cleanUtr(utr)
+  const bad = !UTR_RE.test(digits)
+  const fieldErr = touched && bad ? (digits.length === 0 ? 'Paste the 12-digit UTR from your payment' : `A UTR is 12 digits — this has ${digits.length}`) : ''
+  const phone = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  const note = `${event.title}${who ? ` - ${who}` : ''}`.slice(0, 60)
+  const upiLink = event.upiId
+    ? `upi://pay?${new URLSearchParams({ pa: event.upiId, ...(event.upiName ? { pn: event.upiName } : {}), am: amount.toFixed(2), cu: 'INR', tn: note }).toString().replace(/\+/g, '%20').replace(/%40/g, '@')}`
+    : ''
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(event.upiId); toast.success('UPI ID copied') } catch { toast.error('Couldn’t copy — long-press the UPI ID instead') }
+  }
+  return (
+    <form noValidate onSubmit={(e) => { e.preventDefault(); setTouched(true); if (!bad) onSubmit() }} className="space-y-4">
+      <button type="button" onClick={onBack} disabled={busy} className="inline-flex items-center gap-1.5 text-[13.5px] text-mute-hi transition-colors hover:text-frost disabled:opacity-40">
+        <ArrowLeft size={14} /> Edit details
+      </button>
+
+      <div className="rounded-2xl border border-white/12 p-4 sm:p-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="t-meta">Step 2 of 2 · Pay the entry fee</p>
+          <p className="t-num text-[28px] font-[600] leading-none text-frost">₹{amount}</p>
+        </div>
+        <p className="mt-1.5 text-[13.5px] text-mute-hi">{isTeam ? 'One payment for the whole team.' : 'One payment per student.'} Your details are checked — your spot is saved once you enter the UTR.</p>
+
+        {event.paymentQr && (
+          <div className="mt-4 flex flex-col items-center">
+            <img src={event.paymentQr} alt={`UPI QR code to pay ₹${amount}${event.upiName ? ` to ${event.upiName}` : ''}`} className="w-full max-w-[240px] rounded-xl bg-white" />
+            <a href={event.paymentQr} download={`${event.slug}-upi-qr`} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-mute-hi underline decoration-line-strong underline-offset-4 hover:text-frost">
+              <Download size={13} /> Save QR{phone ? ' — then scan it from your gallery in any UPI app' : ''}
+            </a>
+          </div>
+        )}
+
+        {event.upiId && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/[0.04] px-4 py-3">
+            <div className="min-w-0">
+              <p className="t-meta">UPI ID{event.upiName ? ` · ${event.upiName}` : ''}</p>
+              <p className="mt-1 select-all break-all text-[14.5px] text-frost">{event.upiId}</p>
+            </div>
+            <button type="button" onClick={copy} className="pill pill--sm shrink-0"><Copy size={13} /> Copy</button>
+          </div>
+        )}
+
+        {phone && upiLink && (
+          <a href={upiLink} className="pill pill--spark mt-3 w-full">Pay ₹{amount} in a UPI app</a>
+        )}
+        {event.paymentNote && <p className="mt-3 text-[13.5px] text-frost/85">{event.paymentNote}</p>}
+      </div>
+
+      <TextField name="utr" label="12-digit UTR / UPI reference no." placeholder="e.g. 4321 5678 9012" autoComplete="off" inputMode="numeric"
+        value={utr} onChange={(e) => onUtr(e.target.value.replace(/[^\d\s]/g, '').slice(0, 16))} onBlur={() => setTouched(true)}
+        error={fieldErr} ok={!bad} disabled={busy} />
+      <p className="-mt-2 px-1 text-[12.5px] text-mute">After paying, open the payment in your UPI app’s history — it’s listed as UTR, UPI Ref No. or UPI transaction ID.</p>
+
+      {error && (
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-ember/30 bg-ember/10 px-4 py-3 text-[14px] text-frost">
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-ember" /> {error}
+        </p>
+      )}
+
+      <button type="submit" disabled={busy} aria-busy={busy} className="pill pill--solid relative !h-[54px] w-full !text-[15px] disabled:!opacity-100">
+        {busy ? <><Loader2 size={16} className="animate-spin" /> Confirming…</> : isTeam ? 'I’ve paid — register my team' : 'I’ve paid — confirm my seat'}
+      </button>
+    </form>
   )
 }

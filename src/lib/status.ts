@@ -1,4 +1,4 @@
-import type { TSEvent } from './api'
+import { isPaid, type TSEvent } from './api'
 import { eventStart } from './time'
 
 export type SeatTone = 'open' | 'low' | 'waitlist' | 'full' | 'closed'
@@ -16,7 +16,7 @@ export function seatState(e: TSEvent, now = Date.now()): { label: string; tone: 
   if (!e.capacity || e.capacity <= 0) return { label: team ? `Open to teams of ${teamRange(e)}` : 'Open registration', tone: 'open', canRegister: true }
   const left = e.capacity - e.registeredCount
   const unit = (n: number) => (team ? `team spot${n === 1 ? '' : 's'}` : `seat${n === 1 ? '' : 's'}`)
-  if (left <= 0) return { label: 'Waitlist open', tone: 'waitlist', canRegister: true }
+  if (left <= 0) return isPaid(e) ? { label: 'Full', tone: 'full', canRegister: false } : { label: 'Waitlist open', tone: 'waitlist', canRegister: true }
   if (left <= Math.max(team ? 2 : 5, Math.ceil(e.capacity * 0.15))) return { label: `${left} ${unit(left)} left`, tone: 'low', canRegister: true }
   return { label: `${left} ${unit(left)} left`, tone: 'open', canRegister: true }
 }

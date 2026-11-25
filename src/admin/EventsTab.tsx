@@ -9,7 +9,7 @@ import { toast } from '../lib/toast'
 
 const CATS = ['Technical', 'Non-Technical', 'Fun & Social']
 const STATUSES = ['Open', 'Full', 'Closed']
-const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', endTime: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false, registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4 })
+const blank = (): Partial<TSEvent> => ({ title: '', slug: '', description: '', fullDescription: '', date: '', time: '', endTime: '', location: '', category: 'Technical', status: 'Open', published: false, capacity: 60, speaker: '', image: '', tags: [], featured: false, registrationMode: 'form', registrationUrl: '', registrationDeadline: null, gallery: [], registrationKind: 'individual', teamMin: 2, teamMax: 4, paymentRequired: false, entryFee: 0, upiId: '', upiName: '', paymentQr: '', paymentNote: '' })
 
 const MODES = [{ v: 'form', l: 'On this site (registration form)' }, { v: 'external', l: 'External link (Google Form, Unstop…)' }, { v: 'closed', l: 'Closed' }]
 /** <input type=datetime-local> wants local 'YYYY-MM-DDTHH:mm' */
@@ -39,6 +39,10 @@ export function EventsTab() {
     if ((v.capacity ?? 0) < 0) errs.capacity = 'Must be 0 or more'
     if (v.registrationKind === 'team' && !((v.teamMin ?? 0) >= 1 && (v.teamMax ?? 0) >= (v.teamMin ?? 0))) errs.teamMax = 'Max must be ≥ min'
     if (v.registrationMode === 'external' && !/^https?:\/\//.test(v.registrationUrl ?? '')) errs.registrationUrl = 'Paste a full link (https://…)'
+    if (v.paymentRequired && v.registrationMode === 'form') {
+      if (!((v.entryFee ?? 0) >= 1)) errs.entryFee = 'Enter the fee in ₹'
+      if (!/^[\w.-]{2,}@[a-zA-Z][\w]{1,}$/.test((v.upiId ?? '').trim())) errs.upiId = 'A UPI ID looks like name@okhdfcbank'
+    }
     setErrors(errs)
     if (Object.keys(errs).length) return
     setSaving(true)
@@ -136,6 +140,30 @@ export function EventsTab() {
                 {edit.id && <Field label="Registered so far" hint="auto-counted"><Input value={String(edit.v.registeredCount ?? 0)} disabled /></Field>}
               </div>
             </div>
+            {(edit.v.registrationMode ?? 'form') === 'form' && (
+              <div className="rounded-xl border border-line p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[13px] font-[600] text-frost">Entry fee (UPI)</p>
+                  <Toggle checked={!!edit.v.paymentRequired} onChange={(v) => set('paymentRequired', v)} label={edit.v.paymentRequired ? 'Paid event' : 'Free'} />
+                </div>
+                {edit.v.paymentRequired ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <Field label={edit.v.registrationKind === 'team' ? 'Fee per team (₹)' : 'Fee per student (₹)'} error={errors.entryFee}>
+                      <Input type="number" min={1} value={edit.v.entryFee || ''} invalid={!!errors.entryFee} onChange={(e) => set('entryFee', Math.max(0, Math.round(Number(e.target.value) || 0)))} placeholder="200" />
+                    </Field>
+                    <Field label="UPI ID" error={errors.upiId}><Input value={edit.v.upiId ?? ''} invalid={!!errors.upiId} onChange={(e) => set('upiId', e.target.value.trim())} placeholder="name@okhdfcbank" /></Field>
+                    <Field label="Payee name" hint="as shown in UPI apps"><Input value={edit.v.upiName ?? ''} onChange={(e) => set('upiName', e.target.value)} placeholder="Account holder's name" /></Field>
+                    <Field label="Note to students" hint="optional"><Input value={edit.v.paymentNote ?? ''} onChange={(e) => set('paymentNote', e.target.value)} placeholder="e.g. One payment per team" /></Field>
+                    <div className="sm:col-span-2">
+                      <ImageField label="UPI QR code" value={edit.v.paymentQr ?? ''} onChange={(v) => set('paymentQr', v)} />
+                      <p className="mt-1.5 text-[12.5px] text-mute-hi">Screenshot the QR from GPay / PhonePe with the amount set, so it matches the fee. Students paste their 12-digit UTR after paying; check them in Registrations.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[12.5px] text-mute-hi">Turn on to show a UPI QR during registration. A spot is only saved once the student enters a valid UTR; paid events have no waitlist.</p>
+                )}
+              </div>
+            )}
             <ImageField label="Cover image" value={edit.v.image ?? ''} onChange={(v) => set('image', v)} />
             <GalleryField value={edit.v.gallery ?? []} onChange={(v) => set('gallery', v)} />
             <div className="flex flex-wrap gap-6 pt-1">

@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Search, X, RotateCw } from 'lucide-react'
-import { fetchEvents, isDemo, type TSEvent } from '../lib/api'
+import { fetchEvents, isDemo, isPaid, type TSEvent } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { useReveals } from '../lib/reveal'
 import { useContent } from '../lib/content'
@@ -145,7 +145,7 @@ function Case({ e, first, featured }: { e: TSEvent; first: boolean; featured: bo
           <Link to={`/events/${e.slug}`} viewTransition className="transition-opacity hover:opacity-80">{e.title}</Link>
         </h3>
         <p className="t-num mx-auto mt-3 max-w-[70ch] text-[14.5px] text-mute-hi">
-          {[formatDateShort(e.date), e.time, e.location, meta.short, e.registrationKind === 'team' ? `Teams of ${teamRange(e)}` : ''].filter(Boolean).join(' · ')}
+          {[formatDateShort(e.date), e.time, e.location, meta.short, e.registrationKind === 'team' ? `Teams of ${teamRange(e)}` : '', isPaid(e) ? `₹${e.entryFee} entry` : ''].filter(Boolean).join(' · ')}
           <span className="mx-2 text-white/25">·</span>
           <span className={`whitespace-nowrap ${s.tone === 'low' || s.tone === 'waitlist' ? 'text-amber' : s.tone === 'open' ? 'text-white' : ''}`}>{s.label}</span>
         </p>
