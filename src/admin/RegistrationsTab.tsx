@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Download, Search, Loader2, Plus, ArrowUpDown, ChevronDown, Check } from 'lucide-react'
+import { Download, Search, Loader2, Plus, ArrowUpDown, ChevronDown, Check, Mail } from 'lucide-react'
 import { useContent } from '../lib/content'
-import { addRegistration, deleteRegistration, listEvents, listRegistrations, setPaymentVerified, setRegistrationStatus } from './adminApi'
+import { addRegistration, deleteRegistration, listEvents, listRegistrations, sendPaymentEmail, setPaymentVerified, setRegistrationStatus } from './adminApi'
 import { useList } from './useList'
 import { Badge, DeleteButton, Drawer, Field, Input, Panel, Select, TableState } from './ui'
 import { cleanUtr, isPaid, UTR_RE, type Registration, type TSEvent } from '../lib/api'
@@ -30,9 +30,24 @@ export function RegistrationsTab() {
       (!n || [r.studentName, r.studentEmail, r.studentRoll, r.teamName, r.paymentUtr, ...r.teamMembers.flatMap((m) => [m.name, m.roll])].join(' ').toLowerCase().includes(n)))
   }, [list.data, event, status, dept, pay, q])
   const unchecked = useMemo(() => list.data.filter((r) => r.paymentUtr && !r.paymentVerified).length, [list.data])
+  const [mailing, setMailing] = useState<string | null>(null)
+  /** Email the student; on "Mark checked" this runs right after, and the Send/Resend button calls it directly. */
+  const email = async (r: Registration, resend: boolean, checkedFirst = false) => {
+    setMailing(r.id)
+    const res = await sendPaymentEmail(r.id, resend)
+    setMailing(null)
+    if (res.sent) toast.success(`${checkedFirst ? 'Payment checked — ' : ''}confirmation emailed to ${res.to ?? r.studentEmail}`)
+    else if (res.code === 'already_sent') toast.success(checkedFirst ? 'Payment checked (they were already emailed)' : 'Already emailed')
+    else toast.error(checkedFirst ? `Payment checked, but the email wasn’t sent: ${res.error}` : res.error || 'Email failed')
+    list.reload()
+  }
   const verify = async (r: Registration) => {
-    try { await setPaymentVerified(r.id, !r.paymentVerified); toast.success(r.paymentVerified ? 'Marked as not checked' : 'Payment marked as checked'); list.reload() }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
+    const wasChecked = r.paymentVerified, wasEmailed = !!r.confirmationSentAt // read before the update changes anything
+    try { await setPaymentVerified(r.id, !wasChecked) }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); return }
+    if (wasChecked) { toast.success('Marked as not checked'); list.reload(); return }
+    if (wasEmailed) { toast.success('Payment marked as checked'); list.reload(); return }
+    await email(r, false, true)
   }
 
   const exportXlsx = async () => {
@@ -43,7 +58,7 @@ export function RegistrationsTab() {
       let n = 0
       const people = rows.flatMap((r) => {
         const base = { Event: r.eventTitle, Team: r.teamName || '—', Status: r.status, 'Registered at': new Date(r.createdAt).toLocaleString('en-IN'),
-          Paid: r.paymentAmount != null ? r.paymentAmount : '', UTR: r.paymentUtr, 'UTR checked': r.paymentUtr ? (r.paymentVerified ? 'Yes' : 'No') : '' }
+          Paid: r.paymentAmount != null ? r.paymentAmount : '', UTR: r.paymentUtr, 'UTR checked': r.paymentUtr ? (r.paymentVerified ? (r.confirmationSentAt ? 'Yes · emailed' : 'Yes') : 'No') : '' }
         const lead = { '#': ++n, ...base, Role: r.teamName ? 'Leader' : 'Individual', Name: r.studentName, Email: r.studentEmail, Roll: r.studentRoll, Department: r.department, Year: r.year }
         return [lead, ...r.teamMembers.map((m) => ({ '#': ++n, ...base, Role: 'Member', Name: m.name, Email: m.email || '', Roll: m.roll, Department: m.department || '', Year: m.year || '' }))]
       })
@@ -113,10 +128,18 @@ export function RegistrationsTab() {
                     <div className="space-y-1">
                       <p className="text-[13px] text-frost">₹{r.paymentAmount ?? '—'}</p>
                       <p className="t-num select-all text-[12.5px] tracking-[0.03em] text-mute-hi" title="UTR — match it in the UPI app's history">{r.paymentUtr}</p>
-                      <button type="button" onClick={() => verify(r)} aria-pressed={r.paymentVerified}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11.5px] font-[560] transition-colors ${r.paymentVerified ? 'border-spark/50 bg-spark/15 text-spark' : 'border-line-strong text-mute-hi hover:border-white/40 hover:text-frost'}`}>
-                        {r.paymentVerified ? <><Check size={11} /> Checked</> : 'Mark checked'}
+                      <button type="button" onClick={() => verify(r)} aria-pressed={r.paymentVerified} disabled={mailing === r.id}
+                        title={r.paymentVerified ? 'Click to mark as not checked' : 'Matches the UPI account? Mark it checked — this emails the student a confirmation'}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11.5px] font-[560] transition-colors disabled:opacity-60 ${r.paymentVerified ? 'border-spark/50 bg-spark/15 text-spark' : 'border-line-strong text-mute-hi hover:border-white/40 hover:text-frost'}`}>
+                        {mailing === r.id ? <><Loader2 size={11} className="animate-spin" /> Emailing…</> : r.paymentVerified ? <><Check size={11} /> Checked</> : 'Mark checked'}
                       </button>
+                      {r.paymentVerified && mailing !== r.id && (
+                        <p className="flex items-center gap-1.5 text-[11.5px] text-mute-hi">
+                          {r.confirmationSentAt
+                            ? <><Mail size={11} aria-hidden /> <span title={new Date(r.confirmationSentAt).toLocaleString('en-IN')}>Emailed {new Date(r.confirmationSentAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span> · <button type="button" onClick={() => email(r, true)} className="underline decoration-line-strong underline-offset-2 hover:text-frost">Resend</button></>
+                            : <><span className="text-amber">Not emailed</span> · <button type="button" onClick={() => email(r, false)} className="underline decoration-line-strong underline-offset-2 hover:text-frost">Send email</button></>}
+                        </p>
+                      )}
                     </div>
                   ) : <span className="text-[13px] text-mute">—</span>}
                 </td>
@@ -147,7 +170,7 @@ function AddRegistration({ open, events, onClose, onDone }: { open: boolean; eve
     setBusy(true); setErr('')
     const { utr: _u, ...rest } = v; void _u
     try {
-      await addRegistration({ ...rest, eventTitle: ev.title, teamMembers: [], paymentUtr: utr, paymentAmount: utr ? ev.entryFee || null : null, paymentVerified: false })
+      await addRegistration({ ...rest, eventTitle: ev.title, teamMembers: [], paymentUtr: utr, paymentAmount: utr ? ev.entryFee || null : null, paymentVerified: false, confirmationSentAt: null })
       toast.success('Registration added'); onDone()
     }
     catch (e) { setErr(e instanceof Error ? e.message : 'Failed') } finally { setBusy(false) }

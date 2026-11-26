@@ -286,11 +286,12 @@ const demoRegs: Registration[] = (() => {
     status: i === 7 ? 'Waitlisted' : 'Confirmed', createdAt: new Date(Date.now() - i * 3600_000).toISOString(),
     teamName: i % 2 ? `Team ${['Kraken', 'Orca', 'Nautilus', 'Trident'][i % 4]}` : '', teamMembers: i % 2 ? [{ name: 'Member One', roll: `4NK24CS1${i}1`, department: 'AIML', year: '2nd Year' }, { name: 'Member Two', roll: `4NK24CS1${i}2`, department: 'CSE', year: '2nd Year' }] : [],
     paymentUtr: i % 2 ? `5021${String(48213907 + i * 7919).padStart(8, '0')}` : '', paymentAmount: i % 2 ? 200 : null, paymentVerified: i === 1,
+    confirmationSentAt: i === 1 ? new Date(Date.now() - 2 * 3600_000).toISOString() : null,
   }))
 })()
 
 export async function listRegistrations(): Promise<Registration[]> {
-  if (isDemo) return [...demoStoredRegs(), ...demoRegs]
+  if (isDemo) return [...demoStoredRegs(), ...demoRegs].map((r) => ({ ...r })) // copies, like rows from a real database
   const { data, error } = await (await db()).from('techspark_registrations').select('*').order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return (data as RegistrationRow[]).map(toRegistration)
@@ -311,6 +312,30 @@ export async function addRegistration(r: Omit<Registration, 'id' | 'createdAt'>)
 export async function setRegistrationStatus(id: string, status: 'Confirmed' | 'Waitlisted') {
   return updateRegistration(id, { status })
 }
+/**
+ * Emails the student that their payment is confirmed (server function /api/payment-email, from the club Gmail).
+ * Runs as the signed-in admin; the server refuses unchecked payments and repeats unless `resend`.
+ */
+export async function sendPaymentEmail(id: string, resend = false): Promise<{ sent: boolean; to?: string; at?: string; error?: string; code?: string }> {
+  if (isDemo) {
+    await new Promise((r) => setTimeout(r, 700))
+    const stored = demoStoredRegs(); const s = stored.find((x) => x.id === id); const r = s ?? demoRegs.find((x) => x.id === id)
+    if (!r) return { sent: false, error: 'That registration no longer exists.' }
+    if (r.confirmationSentAt && !resend) return { sent: false, code: 'already_sent', error: 'Already emailed.' }
+    r.confirmationSentAt = new Date().toISOString()
+    if (s) saveDemoStoredRegs(stored)
+    return { sent: true, to: r.studentEmail, at: r.confirmationSentAt }
+  }
+  const { data } = await (await db()).auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { sent: false, error: 'Your admin session ended — sign in again.' }
+  try {
+    const res = await fetch('/api/payment-email', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ id, resend }) })
+    const body = await res.json().catch(() => ({}))
+    return res.ok ? { sent: true, ...body } : { sent: false, error: body.error || `Email failed (${res.status})`, code: body.code }
+  } catch { return { sent: false, error: 'Couldn’t reach the email service. Check your connection.' } }
+}
+
 /** Admin ticks a payment off against the bank statement (or unticks it). */
 export async function setPaymentVerified(id: string, verified: boolean) {
   return updateRegistration(id, { payment_verified: verified })

@@ -199,6 +199,8 @@ create index if not exists idx_reg_team_members on public.techspark_registration
 alter table public.techspark_registrations add column if not exists payment_utr text;
 alter table public.techspark_registrations add column if not exists payment_amount integer;
 alter table public.techspark_registrations add column if not exists payment_verified boolean not null default false;
+-- when the "payment confirmed" email went out (set by /api/payment-email), so nobody gets it twice by accident
+alter table public.techspark_registrations add column if not exists confirmation_sent_at timestamptz;
 -- one UTR pays for one registration, across every event
 create unique index if not exists uq_reg_payment_utr on public.techspark_registrations (payment_utr) where payment_utr is not null;
 

@@ -30,6 +30,7 @@ export interface RegistrationRow {
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; created_at: string
   team_name?: string | null; team_members?: TeamMemberInput[] | null
   payment_utr?: string | null; payment_amount?: number | null; payment_verified?: boolean | null
+  confirmation_sent_at?: string | null
 }
 
 export interface TeamRow { id: string; name: string; role: string | null; photo: string | null; photo_fun: string | null; sort_order: number | null; published: boolean; created_at: string }
@@ -61,6 +62,8 @@ export interface Registration {
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; createdAt: string
   teamName: string; teamMembers: TeamMemberInput[]
   paymentUtr: string; paymentAmount: number | null; paymentVerified: boolean
+  /** when the "payment confirmed" email went out; null = not sent */
+  confirmationSentAt: string | null
 }
 export interface TeamMemberInput { name: string; roll: string; email?: string; department?: string; year?: string }
 
@@ -112,6 +115,7 @@ export const toRegistration = (r: RegistrationRow): Registration => ({
   studentRoll: r.student_roll, department: r.department, year: r.year, status: r.status, createdAt: r.created_at,
   teamName: r.team_name ?? '', teamMembers: r.team_members ?? [],
   paymentUtr: r.payment_utr ?? '', paymentAmount: r.payment_amount ?? null, paymentVerified: !!r.payment_verified,
+  confirmationSentAt: r.confirmation_sent_at ?? null,
 })
 
 export const toTeam = (r: TeamRow): TeamMember => ({
@@ -218,7 +222,7 @@ export async function registerForEvent(i: RegisterInput): Promise<RegisterResult
       id, eventId: i.eventId, eventTitle: ev?.title ?? '', studentName: i.name.trim(), studentEmail: i.email.trim().toLowerCase(),
       studentRoll: key(i.roll), department: i.department, year: i.year, status, createdAt: new Date().toISOString(),
       teamName: i.teamName?.trim() ?? '', teamMembers: (i.members ?? []).map((m) => ({ ...m, roll: key(m.roll) })),
-      paymentUtr: utr ?? '', paymentAmount: paid && ev ? ev.entryFee : null, paymentVerified: false,
+      paymentUtr: utr ?? '', paymentAmount: paid && ev ? ev.entryFee : null, paymentVerified: false, confirmationSentAt: null,
     }, ...stored])
     return wait({ success: true, id, status, message: full ? 'Added to waitlist' : 'Registered' }, 1400)
   }
