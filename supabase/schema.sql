@@ -199,6 +199,8 @@ create index if not exists idx_reg_team_members on public.techspark_registration
 alter table public.techspark_registrations add column if not exists payment_utr text;
 alter table public.techspark_registrations add column if not exists payment_amount integer;
 alter table public.techspark_registrations add column if not exists payment_verified boolean not null default false;
+-- the registering student's mobile (required for new registrations); teammates' mobiles live in team_members[].phone (optional)
+alter table public.techspark_registrations add column if not exists student_phone text;
 -- when the "payment confirmed" email went out (set by /api/payment-email), so nobody gets it twice by accident
 alter table public.techspark_registrations add column if not exists confirmation_sent_at timestamptz;
 -- one UTR pays for one registration, across every event
@@ -213,6 +215,18 @@ create unique index if not exists uq_reg_payment_utr on public.techspark_registr
 -- Returns the new registration's id: the student's device keeps it as a private receipt (see registration_status).
 drop function if exists public.register_for_event(uuid, text, text, text, text, text);
 drop function if exists public.register_for_event(uuid, text, text, text, text, text, text, jsonb);
+drop function if exists public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text);
+
+-- Indian mobile numbers, however they're typed (+91 98450 12345, 098450-12345, 9845012345) → 9845012345.
+-- Anything that isn't 10 digits starting 6–9 comes back as-is and fails the check below.
+create or replace function public.techspark_phone(p text) returns text language sql immutable as $$
+  select case
+    when d ~ '^91[6-9][0-9]{9}$' then substr(d, 3)
+    when d ~ '^0[6-9][0-9]{9}$' then substr(d, 2)
+    else d end
+  from (select regexp_replace(coalesce(p, ''), '\D', '', 'g') as d) x
+$$;
+
 create or replace function public.register_for_event(
   p_event_id      uuid,
   p_student_name  text,
@@ -222,7 +236,8 @@ create or replace function public.register_for_event(
   p_year          text,
   p_team_name     text  default null,
   p_members       jsonb default '[]'::jsonb,
-  p_utr           text  default null
+  p_utr           text  default null,
+  p_phone         text  default null
 )
 returns json
 language plpgsql
@@ -243,10 +258,14 @@ declare
   v_paid    boolean;
   v_utr     text := nullif(regexp_replace(coalesce(p_utr, ''), '\s', '', 'g'), '');
   v_id      uuid;
+  v_phone   text := public.techspark_phone(p_phone);
 begin
   if length(v_name) < 2 or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]{2,}$' or length(v_roll) < 4
      or coalesce(p_department, '') = '' or coalesce(p_year, '') = '' then
     return json_build_object('success', false, 'error', 'Please fill in every field with valid details.');
+  end if;
+  if v_phone !~ '^[6-9][0-9]{9}$' then
+    return json_build_object('success', false, 'error', 'Add a valid 10-digit mobile number (reload the page if you don’t see the field).');
   end if;
   if jsonb_typeof(v_members) <> 'array' then
     return json_build_object('success', false, 'error', 'Team members were sent in an unexpected format.');
@@ -287,13 +306,20 @@ begin
     ) then
       return json_build_object('success', false, 'error', 'Fill in every team member’s name and roll number.');
     end if;
+    if exists (
+      select 1 from jsonb_array_elements(v_members) e
+      where coalesce(e->>'phone', '') <> '' and public.techspark_phone(e->>'phone') !~ '^[6-9][0-9]{9}$'
+    ) then
+      return json_build_object('success', false, 'error', 'A teammate’s mobile number isn’t a valid 10-digit number (or leave it empty).');
+    end if;
     -- normalise members
     select coalesce(jsonb_agg(jsonb_build_object(
              'name', btrim(e->>'name'),
              'roll', upper(regexp_replace(e->>'roll', '\s', '', 'g')),
              'email', lower(btrim(coalesce(e->>'email', ''))),
              'department', coalesce(e->>'department', ''),
-             'year', coalesce(e->>'year', '')
+             'year', coalesce(e->>'year', ''),
+             'phone', public.techspark_phone(e->>'phone')
            )), '[]'::jsonb)
       into v_members
       from jsonb_array_elements(v_members) e;
@@ -359,10 +385,10 @@ begin
 
   insert into public.techspark_registrations
     (event_id, event_title, student_name, student_email, student_roll, department, year, status, team_name, team_members,
-     payment_utr, payment_amount)
+     payment_utr, payment_amount, student_phone)
   values
     (p_event_id, v_event.title, v_name, v_email, v_roll, p_department, p_year, v_status, v_team, v_members,
-     v_utr, case when v_paid then v_event.entry_fee end)
+     v_utr, case when v_paid then v_event.entry_fee end, v_phone)
   returning id into v_id;
 
   return json_build_object(
@@ -386,8 +412,8 @@ exception
     end;
 end;
 $$;
-revoke all on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text) from public;
-grant execute on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text) to anon, authenticated;
+revoke all on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text, text) from public;
+grant execute on function public.register_for_event(uuid, text, text, text, text, text, text, jsonb, text, text) to anon, authenticated;
 
 -- ─────────────────────────────── RPC: registration_status ───────────────────────────────
 -- A student's device asks "is my registration still there?" with the id it got back when registering.

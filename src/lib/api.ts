@@ -30,7 +30,7 @@ export interface RegistrationRow {
   department: string; year: string; status: 'Confirmed' | 'Waitlisted'; created_at: string
   team_name?: string | null; team_members?: TeamMemberInput[] | null
   payment_utr?: string | null; payment_amount?: number | null; payment_verified?: boolean | null
-  confirmation_sent_at?: string | null
+  confirmation_sent_at?: string | null; student_phone?: string | null
 }
 
 export interface TeamRow { id: string; name: string; role: string | null; photo: string | null; photo_fun: string | null; sort_order: number | null; published: boolean; created_at: string }
@@ -64,8 +64,18 @@ export interface Registration {
   paymentUtr: string; paymentAmount: number | null; paymentVerified: boolean
   /** when the "payment confirmed" email went out; null = not sent */
   confirmationSentAt: string | null
+  /** the registering student's mobile, 10 digits ('' for registrations made before phones were asked) */
+  studentPhone: string
 }
-export interface TeamMemberInput { name: string; roll: string; email?: string; department?: string; year?: string }
+export interface TeamMemberInput { name: string; roll: string; email?: string; department?: string; year?: string; phone?: string }
+
+/** Indian mobile numbers however they're typed (+91 98450 12345, 098450-12345) → 9845012345. Matches the database. */
+export const normPhone = (s: string) => {
+  const d = s.replace(/\D/g, '')
+  return /^91[6-9]\d{9}$/.test(d) ? d.slice(2) : /^0[6-9]\d{9}$/.test(d) ? d.slice(1) : d
+}
+export const PHONE_RE = /^[6-9]\d{9}$/
+export const formatPhone = (p: string) => (PHONE_RE.test(p) ? `${p.slice(0, 5)} ${p.slice(5)}` : p)
 
 export const toEvent = (r: EventRow): TSEvent => ({
   id: r.id, title: r.title, slug: r.slug, description: r.description ?? '', fullDescription: r.full_description ?? r.description ?? '',
@@ -115,7 +125,7 @@ export const toRegistration = (r: RegistrationRow): Registration => ({
   studentRoll: r.student_roll, department: r.department, year: r.year, status: r.status, createdAt: r.created_at,
   teamName: r.team_name ?? '', teamMembers: r.team_members ?? [],
   paymentUtr: r.payment_utr ?? '', paymentAmount: r.payment_amount ?? null, paymentVerified: !!r.payment_verified,
-  confirmationSentAt: r.confirmation_sent_at ?? null,
+  confirmationSentAt: r.confirmation_sent_at ?? null, studentPhone: r.student_phone ?? '',
 })
 
 export const toTeam = (r: TeamRow): TeamMember => ({
@@ -182,7 +192,7 @@ export async function fetchSiteContent(): Promise<Record<string, unknown> | null
 
 /* ───────── Registration ───────── */
 export interface RegisterInput {
-  eventId: string; name: string; email: string; roll: string; department: string; year: string
+  eventId: string; name: string; email: string; roll: string; department: string; year: string; phone: string
   teamName?: string; members?: TeamMemberInput[]
   /** paid events: the 12-digit UTR. Leave it out to check every other detail before the student pays. */
   utr?: string
@@ -204,6 +214,8 @@ export async function registerForEvent(i: RegisterInput): Promise<RegisterResult
     const key = (r: string) => r.trim().toUpperCase()
     const taken = new Set(stored.filter((r) => r.eventId === i.eventId).flatMap((r) => [r.studentRoll, ...r.teamMembers.map((m) => m.roll)].map(key)))
     const rolls = [i.roll, ...(i.members ?? []).map((m) => m.roll)].map(key)
+    if (!PHONE_RE.test(normPhone(i.phone))) return wait({ success: false, error: 'Add a valid 10-digit mobile number (reload the page if you don’t see the field).' }, 500)
+    if ((i.members ?? []).some((m) => m.phone && !PHONE_RE.test(normPhone(m.phone)))) return wait({ success: false, error: 'A teammate’s mobile number isn’t a valid 10-digit number (or leave it empty).' }, 500)
     if (rolls.some((k) => taken.has(k))) return wait({ success: false, error: i.teamName !== undefined ? 'Someone on this team (or this email) is already registered for this event.' : 'You have already registered for this event with this roll number.' }, 1200)
     const full = ev ? ev.capacity > 0 && ev.registeredCount >= ev.capacity : false
     const paid = !!ev && isPaid(ev)
@@ -221,16 +233,16 @@ export async function registerForEvent(i: RegisterInput): Promise<RegisterResult
     saveDemoStoredRegs([{
       id, eventId: i.eventId, eventTitle: ev?.title ?? '', studentName: i.name.trim(), studentEmail: i.email.trim().toLowerCase(),
       studentRoll: key(i.roll), department: i.department, year: i.year, status, createdAt: new Date().toISOString(),
-      teamName: i.teamName?.trim() ?? '', teamMembers: (i.members ?? []).map((m) => ({ ...m, roll: key(m.roll) })),
-      paymentUtr: utr ?? '', paymentAmount: paid && ev ? ev.entryFee : null, paymentVerified: false, confirmationSentAt: null,
+      teamName: i.teamName?.trim() ?? '', teamMembers: (i.members ?? []).map((m) => ({ ...m, roll: key(m.roll), phone: m.phone ? normPhone(m.phone) : '' })),
+      paymentUtr: utr ?? '', paymentAmount: paid && ev ? ev.entryFee : null, paymentVerified: false, confirmationSentAt: null, studentPhone: normPhone(i.phone),
     }, ...stored])
     return wait({ success: true, id, status, message: full ? 'Added to waitlist' : 'Registered' }, 1400)
   }
   const { data, error } = await (await client()).rpc('register_for_event', {
     p_event_id: i.eventId, p_student_name: i.name.trim(), p_student_email: i.email.trim().toLowerCase(),
     p_student_roll: i.roll.trim().toUpperCase(), p_department: i.department, p_year: i.year,
-    ...(i.teamName !== undefined || i.utr !== undefined ? { p_team_name: i.teamName?.trim() ?? null, p_members: i.members ?? [] } : {}),
-    ...(i.utr !== undefined ? { p_utr: cleanUtr(i.utr) } : {}),
+    p_team_name: i.teamName?.trim() ?? null, p_members: i.members ?? [],
+    p_utr: i.utr !== undefined ? cleanUtr(i.utr) : null, p_phone: normPhone(i.phone),
   })
   if (error) return { success: false, error: error.message }
   return data as RegisterResult

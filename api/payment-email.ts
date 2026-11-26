@@ -17,7 +17,7 @@ interface Reg {
   status: string; team_name: string | null; team_members: { name: string; roll: string }[] | null
   payment_utr: string | null; payment_amount: number | null; payment_verified: boolean; confirmation_sent_at: string | null
 }
-interface Ev { title: string; slug: string; date: string | null; time: string | null; end_time: string | null; location: string | null }
+interface Ev { title: string; slug?: string; date: string | null; time: string | null; end_time: string | null; location: string | null }
 export interface Mail { from: string; replyTo: string; to: string; subject: string; text: string; html: string }
 export interface Deps {
   env: Record<string, string | undefined>
@@ -61,8 +61,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   const evRes = await db(`techspark_events?id=eq.${reg.event_id}&select=title,slug,date,time,end_time,location`)
   const ev = evRes.ok ? ((await evRes.json()) as Ev[])[0] : undefined
 
-  const site = new URL(request.url).origin
-  const mail = confirmationEmail(reg, ev, site, from)
+  const mail = confirmationEmail(reg, ev, from)
   try { await deps.send(mail) }
   catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -86,58 +85,57 @@ function when(ev?: Ev): string {
   return t ? `${day}, ${t}` : day
 }
 
-export function confirmationEmail(reg: Reg, ev: Ev | undefined, site: string, from: string): Mail {
+/**
+ * Written to read like a note from a person, not a newsletter: no links (free *.vercel.app addresses are a
+ * common phishing signal), no buttons or images, a plain subject. Everything the student needs is in the text.
+ */
+export function confirmationEmail(reg: Reg, ev: Ev | undefined, from: string): Mail {
   const title = ev?.title || reg.event_title
   const first = reg.student_name.trim().split(/\s+/)[0]
   const team = reg.team_name?.trim() || ''
   const waitlisted = reg.status === 'Waitlisted'
   const people = team ? [{ name: reg.student_name, roll: reg.student_roll, lead: true }, ...(reg.team_members ?? []).map((m) => ({ ...m, lead: false }))] : []
-  const link = ev?.slug ? `${site}/events/${ev.slug}` : site
-  const paid = `₹${reg.payment_amount ?? ''}`.replace(/₹$/, 'Paid')
+  const amount = reg.payment_amount != null ? `Rs. ${reg.payment_amount}` : 'Paid'
 
   const subject = waitlisted
-    ? `Payment confirmed — ${title} (waitlist)`
-    : team ? `${team} is in — ${title}` : `You’re in — ${title}`
+    ? `Your registration for ${title} (waitlist)`
+    : `Your registration for ${title} is confirmed`
   const lead = waitlisted
-    ? `Your payment is confirmed. ${team ? `${team} is` : 'You’re'} on the waitlist for ${title} — we’ll let you know the moment a spot opens.`
-    : `Congratulations — your payment is confirmed and ${team ? `${team} is` : 'you’re'} registered for ${title}.`
+    ? `we've received your payment. ${team ? `${team} is` : 'You are'} on the waitlist for ${title}, and we'll write to you as soon as a spot opens.`
+    : `congratulations! We've received your payment, and ${team ? `${team} is` : 'you are'} registered for ${title}.`
 
   const rows: [string, string][] = [
-    ['Payment', `${paid} · UTR ${groupUtr(reg.payment_utr || '')}`],
     ...(team ? [['Team', team] as [string, string]] : []),
     ['When', when(ev)],
     ['Where', ev?.location || 'To be announced'],
+    ['Paid', `${amount} (UTR ${groupUtr(reg.payment_utr || '')})`],
   ]
+  const checkIn = team ? 'Everyone on the team should bring their college ID card and check in at the entrance.' : 'Please bring your college ID card and check in at the entrance.'
 
   const text = [
-    `Hi ${first},`, '', lead, '',
+    `Hi ${first},`, '', lead.charAt(0).toUpperCase() + lead.slice(1), '',
     ...rows.map(([k, v]) => `${k}: ${v}`),
-    ...(people.length ? ['', 'Your team:', ...people.map((p) => `  • ${p.name} (${p.roll})${p.lead ? ' — leader' : ''}`)] : []),
-    '', team ? 'Everyone on the team brings their student ID and checks in at the entrance.' : 'Bring your student ID and check in at the entrance.',
-    '', `Event page: ${link}`, '', 'See you there,', 'TECHSPARK', 'Navkis College of Engineering, Hassan', '',
-    'Questions? Just reply to this email.',
+    ...(people.length ? ['', 'Team members:', ...people.map((p) => `- ${p.name} (${p.roll})${p.lead ? ', leader' : ''}`)] : []),
+    '', checkIn, '', 'If anything here looks wrong, just reply to this email.', '',
+    'See you there,', 'TECHSPARK', 'Navkis College of Engineering, Hassan',
   ].join('\n')
 
-  const td = 'padding:10px 0;border-top:1px solid #e6e8ee;font-size:14px;vertical-align:top'
-  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b0f19">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f9;padding:28px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-<tr><td style="height:4px;background:#1a9fe8;background:linear-gradient(90deg,#0057ff,#1a9fe8)"></td></tr>
-<tr><td style="padding:28px 28px 8px">
-<p style="margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#1a9fe8;font-weight:600">${waitlisted ? 'Payment confirmed' : team ? 'Team registered' : 'Registration confirmed'}</p>
-<h1 style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:30px;line-height:1.15">${esc(waitlisted ? `Hang tight, ${first}.` : team ? `${team} is in.` : `You’re in, ${first}.`)}</h1>
-<p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:#374151">Hi ${esc(first)}, ${esc(lead.charAt(0).toLowerCase() + lead.slice(1))}</p>
-</td></tr>
-<tr><td style="padding:12px 28px 4px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-${rows.map(([k, v]) => `<tr><td style="${td};width:92px;color:#6b7280">${esc(k)}</td><td style="${td};color:#0b0f19">${esc(v)}</td></tr>`).join('')}
-${people.length ? `<tr><td style="${td};width:92px;color:#6b7280">Members</td><td style="${td}">${people.map((p) => `${esc(p.name)} <span style="color:#6b7280">· ${esc(p.roll)}${p.lead ? ' · leader' : ''}</span>`).join('<br>')}</td></tr>` : ''}
-</table></td></tr>
-<tr><td style="padding:16px 28px 8px;font-size:14px;line-height:1.6;color:#374151">${team ? 'Everyone on the team brings their student ID and checks in at the entrance.' : 'Bring your student ID and check in at the entrance.'}</td></tr>
-<tr><td style="padding:12px 28px 28px"><a href="${esc(link)}" style="display:inline-block;background:#0b0f19;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:999px">View the event</a></td></tr>
-<tr><td style="padding:18px 28px;background:#f8f9fc;font-size:12.5px;line-height:1.6;color:#6b7280">TECHSPARK · Navkis College of Engineering, Hassan<br>Questions? Just reply to this email.</td></tr>
-</table></td></tr></table></body></html>`
+  const p = 'margin:0 0 14px;font-size:15px;line-height:1.6'
+  const html = `<!doctype html><html><body style="margin:0;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;color:#1f2328;background:#ffffff">
+<div style="max-width:520px">
+<p style="${p}">Hi ${esc(first)},</p>
+<p style="${p}">${esc(lead.charAt(0).toUpperCase() + lead.slice(1))}</p>
+<table cellpadding="0" cellspacing="0" style="margin:0 0 14px;font-size:15px;line-height:1.6">
+${rows.map(([k, v]) => `<tr><td style="padding:2px 16px 2px 0;color:#57606a;vertical-align:top">${esc(k)}</td><td style="padding:2px 0">${esc(v)}</td></tr>`).join('\n')}
+</table>
+${people.length ? `<p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#57606a">Team members</p>
+<p style="${p}">${people.map((x) => `${esc(x.name)} (${esc(x.roll)})${x.lead ? ', leader' : ''}`).join('<br>')}</p>` : ''}
+<p style="${p}">${esc(checkIn)}</p>
+<p style="${p}">If anything here looks wrong, just reply to this email.</p>
+<p style="margin:0;font-size:15px;line-height:1.6">See you there,<br>TECHSPARK<br><span style="color:#57606a">Navkis College of Engineering, Hassan</span></p>
+</div></body></html>`
 
-  return { from: `TECHSPARK <${from}>`, replyTo: from, to: reg.student_email, subject, text, html }
+  return { from: `TECHSPARK Navkis <${from}>`, replyTo: from, to: reg.student_email, subject, text, html }
 }
 
 /* ───────── wiring for Vercel ───────── */

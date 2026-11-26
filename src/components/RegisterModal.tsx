@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Check, X, CalendarPlus, Share2, ChevronDown, Loader2, AlertCircle, Plus, Trash2, Copy, ArrowLeft, Download } from 'lucide-react'
-import { registerForEvent, isPaid, cleanUtr, UTR_RE, type TSEvent } from '../lib/api'
+import { registerForEvent, isPaid, cleanUtr, UTR_RE, normPhone, PHONE_RE, type TSEvent } from '../lib/api'
 import { useContent } from '../lib/content'
 import { teamRange } from '../lib/status'
 import { closeRegister, useRegisterTarget } from '../lib/registerStore'
@@ -13,9 +13,10 @@ import { notifyDataUpdated } from '../lib/supabase'
 import { toast } from '../lib/toast'
 import { flareSpark } from '../three/sparkState'
 
-type Field = 'name' | 'email' | 'roll' | 'department' | 'year'
+type Field = 'name' | 'email' | 'phone' | 'roll' | 'department' | 'year'
 type Values = Record<Field, string>
-const EMPTY: Values = { name: '', email: '', roll: '', department: '', year: '' }
+const EMPTY: Values = { name: '', email: '', phone: '', roll: '', department: '', year: '' }
+const FIELD_ORDER: Field[] = ['name', 'email', 'phone', 'roll', 'department', 'year']
 
 /* Roll numbers: short college IDs (24CS014) or VTU USNs (4NK24CS014). */
 const ROLL_RE = /^(\d{2}[A-Z]{2,4}\d{2,4}|\d[A-Z]{2}\d{2}[A-Z]{2,3}\d{3})$/
@@ -26,6 +27,7 @@ function validate(v: Values): Partial<Record<Field, string>> {
   if (v.name.trim().length < 2) e.name = 'Your full name, as on your ID'
   else if (!/^[\p{L} .'-]+$/u.test(v.name.trim())) e.name = 'Letters, spaces, dots and hyphens only'
   if (!EMAIL_RE.test(v.email.trim())) e.email = 'That doesn’t look like an email yet'
+  if (!PHONE_RE.test(normPhone(v.phone))) e.phone = v.phone.trim() ? 'A 10-digit mobile number, e.g. 98450 12345' : 'Your mobile number, so the club can reach you'
   if (!ROLL_RE.test(v.roll.trim().toUpperCase())) e.roll = 'Use your roll number, e.g. 24CS014 or 4NK24CS014'
   if (!v.department) e.department = 'Pick your department'
   if (!v.year) e.year = 'Pick your year'
@@ -33,8 +35,8 @@ function validate(v: Values): Partial<Record<Field, string>> {
 }
 
 /* teammates (team events): the leader is the main form; these are everyone else */
-interface Mate { name: string; roll: string; department: string; year: string }
-const EMPTY_MATE: Mate = { name: '', roll: '', department: '', year: '' }
+interface Mate { name: string; roll: string; department: string; year: string; phone: string }
+const EMPTY_MATE: Mate = { name: '', roll: '', department: '', year: '', phone: '' }
 type MateErrors = Partial<Record<keyof Mate, string>>
 
 function validateTeam(teamName: string, mates: Mate[], leaderRoll: string): { team?: string; mates: MateErrors[] } {
@@ -51,6 +53,7 @@ function validateTeam(teamName: string, mates: Mate[], leaderRoll: string): { te
     seen.add(roll)
     if (!m.department) e.department = 'Department'
     if (!m.year) e.year = 'Year'
+    if (m.phone.trim() && !PHONE_RE.test(normPhone(m.phone))) e.phone = '10-digit mobile, or leave it empty'
   })
   return out
 }
@@ -86,7 +89,7 @@ function Sheet({ event }: { event: TSEvent }) {
   const firstInput = useRef<HTMLInputElement>(null)
   const returnFocus = useRef<HTMLElement | null>(document.activeElement as HTMLElement)
   const [values, setValues] = useState<Values>(() => {
-    if (draft) return draft.values
+    if (draft) return { ...EMPTY, ...draft.values }
     try { return { ...EMPTY, ...JSON.parse(localStorage.getItem('ts_last_student') || '{}') } } catch { return EMPTY }
   })
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
@@ -97,7 +100,7 @@ function Sheet({ event }: { event: TSEvent }) {
   const isTeam = event.registrationKind === 'team'
   const minMates = Math.max(0, event.teamMin - 1), maxMates = Math.max(minMates, event.teamMax - 1)
   const [teamName, setTeamName] = useState(draft?.teamName ?? '')
-  const [mates, setMates] = useState<Mate[]>(() => draft?.mates ?? Array.from({ length: minMates }, () => ({ ...EMPTY_MATE })))
+  const [mates, setMates] = useState<Mate[]>(() => draft?.mates?.map((m) => ({ ...EMPTY_MATE, ...m })) ?? Array.from({ length: minMates }, () => ({ ...EMPTY_MATE })))
   const [mateTouched, setMateTouched] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const teamErrors = useMemo(() => (isTeam ? validateTeam(teamName, mates, values.roll) : { mates: [] as MateErrors[] }), [isTeam, teamName, mates, values.roll])
@@ -167,11 +170,11 @@ function Sheet({ event }: { event: TSEvent }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (phase.kind === 'submitting') return
-    setTouched({ name: true, email: true, roll: true, department: true, year: true })
+    setTouched({ name: true, email: true, phone: true, roll: true, department: true, year: true })
     setSubmitted(true)
     const teamBad = isTeam && (teamErrors.team || teamErrors.mates.some((m) => Object.keys(m).length))
     if (Object.keys(errors).length || teamBad) {
-      const firstBad = isTeam && teamErrors.team ? 'team' : (['name', 'email', 'roll', 'department', 'year'] as Field[]).find((k) => errors[k])
+      const firstBad = isTeam && teamErrors.team ? 'team' : FIELD_ORDER.find((k) => errors[k])
       const target = firstBad ? panel.current?.querySelector<HTMLElement>(`[name="${firstBad}"]`) : panel.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
       target?.focus()
       return
@@ -188,7 +191,7 @@ function Sheet({ event }: { event: TSEvent }) {
     try {
       const res = await registerForEvent({
         eventId: event.id, ...values,
-        ...(isTeam ? { teamName: teamName.trim(), members: mates.map((m) => ({ name: m.name.trim(), roll: m.roll.trim().toUpperCase(), department: m.department, year: m.year })) } : {}),
+        ...(isTeam ? { teamName: teamName.trim(), members: mates.map((m) => ({ name: m.name.trim(), roll: m.roll.trim().toUpperCase(), department: m.department, year: m.year, ...(m.phone.trim() ? { phone: normPhone(m.phone) } : {}) })) } : {}),
         ...(withUtr !== undefined ? { utr: withUtr } : {}),
       })
       if (res.success && res.status) {
@@ -252,6 +255,7 @@ function Sheet({ event }: { event: TSEvent }) {
               )}
               <TextField ref={isTeam ? undefined : firstInput} name="name" label="Full name" placeholder="e.g. Rahul Sharma" autoComplete="name" value={values.name} onChange={update('name')} onBlur={blur('name')} error={show('name')} ok={!errors.name} disabled={busy} />
               <TextField name="email" type="email" label="Email (personal or college)" placeholder="name@gmail.com or student@college.edu" autoComplete="email" inputMode="email" value={values.email} onChange={update('email')} onBlur={blur('email')} error={show('email')} ok={!errors.email} disabled={busy} />
+              <TextField name="phone" type="tel" label={isTeam ? 'Your mobile number' : 'Mobile number'} placeholder="98450 12345" autoComplete="tel-national" inputMode="tel" maxLength={16} value={values.phone} onChange={update('phone')} onBlur={blur('phone')} error={show('phone')} ok={!errors.phone} disabled={busy} />
               <TextField name="roll" label="Roll / Student ID" placeholder="24CS014" autoComplete="off" autoCapitalize="characters" value={values.roll} onChange={update('roll')} onBlur={blur('roll')} error={show('roll')} ok={!errors.roll} disabled={busy} />
               <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
                 <SelectField name="department" label="Department" options={opts.departments} value={values.department} onChange={update('department')} onBlur={blur('department')} error={show('department')} disabled={busy} />
@@ -272,6 +276,7 @@ function Sheet({ event }: { event: TSEvent }) {
                       </div>
                       <TextField name={`m${i}-name`} label="Full name" placeholder="Teammate’s name" autoComplete="off" value={m.name} onChange={setMate(i, 'name')} onBlur={() => setMateTouched((t) => ({ ...t, [`${i}.name`]: true }))} error={mateErr(i, 'name')} ok={!teamErrors.mates[i]?.name} disabled={busy} />
                       <TextField name={`m${i}-roll`} label="Roll / Student ID" placeholder="24CS015" autoComplete="off" autoCapitalize="characters" value={m.roll} onChange={setMate(i, 'roll')} onBlur={() => setMateTouched((t) => ({ ...t, [`${i}.roll`]: true }))} error={mateErr(i, 'roll')} ok={!teamErrors.mates[i]?.roll} disabled={busy} />
+                      <TextField name={`m${i}-phone`} type="tel" label="Mobile (optional)" placeholder="98450 12345" autoComplete="off" inputMode="tel" maxLength={16} value={m.phone} onChange={setMate(i, 'phone')} onBlur={() => setMateTouched((t) => ({ ...t, [`${i}.phone`]: true }))} error={mateErr(i, 'phone')} ok={!!m.phone.trim() && !teamErrors.mates[i]?.phone} disabled={busy} />
                       <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
                         <SelectField name={`m${i}-department`} label="Department" options={opts.departments} value={m.department} onChange={setMate(i, 'department')} onBlur={() => setMateTouched((t) => ({ ...t, [`${i}.department`]: true }))} error={mateErr(i, 'department')} disabled={busy} />
                         <SelectField name={`m${i}-year`} label="Year" options={opts.years} value={m.year} onChange={setMate(i, 'year')} onBlur={() => setMateTouched((t) => ({ ...t, [`${i}.year`]: true }))} error={mateErr(i, 'year')} disabled={busy} />

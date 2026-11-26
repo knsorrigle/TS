@@ -4,7 +4,7 @@ import { useContent } from '../lib/content'
 import { addRegistration, deleteRegistration, listEvents, listRegistrations, sendPaymentEmail, setPaymentVerified, setRegistrationStatus } from './adminApi'
 import { useList } from './useList'
 import { Badge, DeleteButton, Drawer, Field, Input, Panel, Select, TableState } from './ui'
-import { cleanUtr, isPaid, UTR_RE, type Registration, type TSEvent } from '../lib/api'
+import { cleanUtr, formatPhone, isPaid, normPhone, PHONE_RE, UTR_RE, type Registration, type TSEvent } from '../lib/api'
 import { toast } from '../lib/toast'
 
 export function RegistrationsTab() {
@@ -27,7 +27,7 @@ export function RegistrationsTab() {
       (status === 'All statuses' || r.status === status) &&
       (dept === 'All departments' || r.department === dept) &&
       (pay === 'All payments' || (pay === 'UTR not checked' ? !!r.paymentUtr && !r.paymentVerified : pay === 'UTR checked' ? !!r.paymentUtr && r.paymentVerified : !r.paymentUtr)) &&
-      (!n || [r.studentName, r.studentEmail, r.studentRoll, r.teamName, r.paymentUtr, ...r.teamMembers.flatMap((m) => [m.name, m.roll])].join(' ').toLowerCase().includes(n)))
+      (!n || [r.studentName, r.studentEmail, r.studentRoll, r.studentPhone, r.teamName, r.paymentUtr, ...r.teamMembers.flatMap((m) => [m.name, m.roll, m.phone ?? ''])].join(' ').toLowerCase().includes(n)))
   }, [list.data, event, status, dept, pay, q])
   const unchecked = useMemo(() => list.data.filter((r) => r.paymentUtr && !r.paymentVerified).length, [list.data])
   const [mailing, setMailing] = useState<string | null>(null)
@@ -59,13 +59,13 @@ export function RegistrationsTab() {
       const people = rows.flatMap((r) => {
         const base = { Event: r.eventTitle, Team: r.teamName || '—', Status: r.status, 'Registered at': new Date(r.createdAt).toLocaleString('en-IN'),
           Paid: r.paymentAmount != null ? r.paymentAmount : '', UTR: r.paymentUtr, 'UTR checked': r.paymentUtr ? (r.paymentVerified ? (r.confirmationSentAt ? 'Yes · emailed' : 'Yes') : 'No') : '' }
-        const lead = { '#': ++n, ...base, Role: r.teamName ? 'Leader' : 'Individual', Name: r.studentName, Email: r.studentEmail, Roll: r.studentRoll, Department: r.department, Year: r.year }
-        return [lead, ...r.teamMembers.map((m) => ({ '#': ++n, ...base, Role: 'Member', Name: m.name, Email: m.email || '', Roll: m.roll, Department: m.department || '', Year: m.year || '' }))]
+        const lead = { '#': ++n, ...base, Role: r.teamName ? 'Leader' : 'Individual', Name: r.studentName, Mobile: r.studentPhone, Email: r.studentEmail, Roll: r.studentRoll, Department: r.department, Year: r.year }
+        return [lead, ...r.teamMembers.map((m) => ({ '#': ++n, ...base, Role: 'Member', Name: m.name, Mobile: m.phone || '', Email: m.email || '', Roll: m.roll, Department: m.department || '', Year: m.year || '' }))]
       })
       const anyPaid = rows.some((r) => r.paymentUtr)
-      const sheet = XLSX.utils.json_to_sheet(people.map(({ '#': num, Event, Team, Role, Name, Email, Roll, Department, Year, Status, 'Registered at': at, Paid, UTR, 'UTR checked': checked }) => ({
-        '#': num, Event, Team, Role, Name, Email, Roll, Department, Year, Status, ...(anyPaid ? { 'Paid (₹)': Paid, UTR, 'UTR checked': checked } : {}), 'Registered at': at })))
-      sheet['!cols'] = [{ wch: 4 }, { wch: 30 }, { wch: 20 }, { wch: 11 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, ...(anyPaid ? [{ wch: 9 }, { wch: 15 }, { wch: 12 }] : []), { wch: 20 }]
+      const sheet = XLSX.utils.json_to_sheet(people.map(({ '#': num, Event, Team, Role, Name, Mobile, Email, Roll, Department, Year, Status, 'Registered at': at, Paid, UTR, 'UTR checked': checked }) => ({
+        '#': num, Event, Team, Role, Name, Mobile, Email, Roll, Department, Year, Status, ...(anyPaid ? { 'Paid (₹)': Paid, UTR, 'UTR checked': checked } : {}), 'Registered at': at })))
+      sheet['!cols'] = [{ wch: 4 }, { wch: 30 }, { wch: 20 }, { wch: 11 }, { wch: 22 }, { wch: 13 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, ...(anyPaid ? [{ wch: 9 }, { wch: 15 }, { wch: 12 }] : []), { wch: 20 }]
       const book = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(book, sheet, 'Registrations')
       const tag = event === 'All events' ? 'all-events' : event.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
@@ -86,7 +86,7 @@ export function RegistrationsTab() {
         </button>
       )}
       <div className="grid gap-3 border-b border-line px-5 py-4 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
-        <label className="relative"><span className="sr-only">Search students</span><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" aria-hidden /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email or roll" className="pl-9" /></label>
+        <label className="relative"><span className="sr-only">Search students</span><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" aria-hidden /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, roll or mobile" className="pl-9" /></label>
         <label><span className="sr-only">Event</span><Select options={eventNames} value={event} onChange={(e) => setEvent(e.target.value)} /></label>
         <label><span className="sr-only">Status</span><Select options={['All statuses', 'Confirmed', 'Waitlisted']} value={status} onChange={(e) => setStatus(e.target.value)} /></label>
         <label><span className="sr-only">Department</span><Select options={depts} value={dept} onChange={(e) => setDept(e.target.value)} /></label>
@@ -105,11 +105,12 @@ export function RegistrationsTab() {
                   {r.teamName && <p className="mb-0.5 text-[12px] font-[600] text-spark">{r.teamName} · {r.teamMembers.length + 1} people</p>}
                   <p className="font-[560] text-frost">{r.studentName}{r.teamName && <span className="ml-1.5 text-[12px] font-[400] text-mute">(leader)</span>}</p>
                   <p className="text-[12.5px] text-mute">{r.studentEmail}</p>
+                  {r.studentPhone && <a href={`tel:+91${r.studentPhone}`} className="t-num text-[12.5px] text-mute-hi hover:text-frost">{formatPhone(r.studentPhone)}</a>}
                   {r.teamMembers.length > 0 && (
                     <details className="mt-1.5 text-[13px]">
                       <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-mute-hi hover:text-frost">Members <ChevronDown size={12} /></summary>
                       <ul className="mt-1.5 space-y-0.5 text-mute-hi">
-                        {r.teamMembers.map((m) => <li key={m.roll}><span className="text-frost/90">{m.name}</span> · {m.roll}{m.department ? ` · ${m.department}` : ''}{m.year ? ` · ${m.year}` : ''}</li>)}
+                        {r.teamMembers.map((m) => <li key={m.roll}><span className="text-frost/90">{m.name}</span> · {m.roll}{m.department ? ` · ${m.department}` : ''}{m.year ? ` · ${m.year}` : ''}{m.phone ? <> · <a href={`tel:+91${m.phone}`} className="t-num hover:text-frost">{formatPhone(m.phone)}</a></> : null}</li>)}
                       </ul>
                     </details>
                   )}
@@ -158,7 +159,7 @@ export function RegistrationsTab() {
 
 function AddRegistration({ open, events, onClose, onDone }: { open: boolean; events: TSEvent[]; onClose: () => void; onDone: () => void }) {
   const { registration: { departments: DEPTS, years: YEARS } } = useContent()
-  const [v, setV] = useState({ eventId: '', studentName: '', studentEmail: '', studentRoll: '', department: DEPTS[0], year: YEARS[0], status: 'Confirmed' as 'Confirmed' | 'Waitlisted', teamName: '', utr: '' })
+  const [v, setV] = useState({ eventId: '', studentName: '', studentEmail: '', studentRoll: '', department: DEPTS[0], year: YEARS[0], status: 'Confirmed' as 'Confirmed' | 'Waitlisted', teamName: '', utr: '', phone: '' })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
@@ -167,10 +168,12 @@ function AddRegistration({ open, events, onClose, onDone }: { open: boolean; eve
     if (!ev || !v.studentName.trim() || !/@/.test(v.studentEmail) || !v.studentRoll.trim()) { setErr('Pick an event and fill name, email and roll.'); return }
     const utr = cleanUtr(v.utr)
     if (utr && !UTR_RE.test(utr)) { setErr('A UTR is exactly 12 digits (or leave it empty).'); return }
+    const phone = v.phone.trim() ? normPhone(v.phone) : ''
+    if (phone && !PHONE_RE.test(phone)) { setErr('Mobile should be 10 digits (or leave it empty).'); return }
     setBusy(true); setErr('')
-    const { utr: _u, ...rest } = v; void _u
+    const { utr: _u, phone: _p, ...rest } = v; void _u; void _p
     try {
-      await addRegistration({ ...rest, eventTitle: ev.title, teamMembers: [], paymentUtr: utr, paymentAmount: utr ? ev.entryFee || null : null, paymentVerified: false, confirmationSentAt: null })
+      await addRegistration({ ...rest, eventTitle: ev.title, teamMembers: [], paymentUtr: utr, paymentAmount: utr ? ev.entryFee || null : null, paymentVerified: false, confirmationSentAt: null, studentPhone: phone })
       toast.success('Registration added'); onDone()
     }
     catch (e) { setErr(e instanceof Error ? e.message : 'Failed') } finally { setBusy(false) }
@@ -188,7 +191,10 @@ function AddRegistration({ open, events, onClose, onDone }: { open: boolean; eve
         <Field label="Full name"><Input value={v.studentName} onChange={set('studentName')} /></Field>
         <Field label="Roll / Student ID"><Input value={v.studentRoll} onChange={set('studentRoll')} /></Field>
       </div>
-      <Field label="Email"><Input type="email" value={v.studentEmail} onChange={set('studentEmail')} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Email"><Input type="email" value={v.studentEmail} onChange={set('studentEmail')} /></Field>
+        <Field label="Mobile" hint="optional"><Input type="tel" inputMode="tel" value={v.phone} onChange={set('phone')} placeholder="98450 12345" /></Field>
+      </div>
       {events.find((e) => e.id === v.eventId)?.registrationKind === 'team' && (
         <Field label="Team name" hint="adds this student as a one-person team entry; add teammates by registering through the site"><Input value={v.teamName} onChange={set('teamName')} /></Field>
       )}

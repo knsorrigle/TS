@@ -287,6 +287,7 @@ const demoRegs: Registration[] = (() => {
     teamName: i % 2 ? `Team ${['Kraken', 'Orca', 'Nautilus', 'Trident'][i % 4]}` : '', teamMembers: i % 2 ? [{ name: 'Member One', roll: `4NK24CS1${i}1`, department: 'AIML', year: '2nd Year' }, { name: 'Member Two', roll: `4NK24CS1${i}2`, department: 'CSE', year: '2nd Year' }] : [],
     paymentUtr: i % 2 ? `5021${String(48213907 + i * 7919).padStart(8, '0')}` : '', paymentAmount: i % 2 ? 200 : null, paymentVerified: i === 1,
     confirmationSentAt: i === 1 ? new Date(Date.now() - 2 * 3600_000).toISOString() : null,
+    studentPhone: `9${String(845012340 + i * 1111).slice(0, 9)}`,
   }))
 })()
 
@@ -302,6 +303,7 @@ export async function addRegistration(r: Omit<Registration, 'id' | 'createdAt'>)
     event_id: r.eventId, event_title: r.eventTitle, student_name: r.studentName.trim(), student_email: r.studentEmail.trim().toLowerCase(),
     student_roll: r.studentRoll.trim().toUpperCase(), department: r.department, year: r.year, status: r.status,
     team_name: r.teamName?.trim() || null, team_members: r.teamMembers ?? [],
+    student_phone: r.studentPhone || null,
     payment_utr: r.paymentUtr ? r.paymentUtr.replace(/\s/g, '') : null, payment_amount: r.paymentAmount ?? null, payment_verified: r.paymentVerified ?? false,
   })
   if (error) throw new Error(error.code === '23505'
