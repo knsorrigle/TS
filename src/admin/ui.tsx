@@ -34,8 +34,9 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
       type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)}
       className="group inline-flex items-center gap-2.5 text-[13.5px] text-frost/85 disabled:opacity-40"
     >
-      <span className={`relative h-[22px] w-[38px] rounded-full transition-colors duration-300 ${checked ? 'bg-spark' : 'bg-white/12'}`}>
-        <span className={`absolute top-[3px] h-4 w-4 rounded-full bg-frost shadow transition-transform duration-500 ease-[var(--ease-expo)] ${checked ? 'translate-x-[19px]' : 'translate-x-[3px]'}`} />
+      {/* left-0 matters: buttons centre their content, which would otherwise start the knob mid-track */}
+      <span className={`relative block h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-300 ${checked ? 'bg-spark' : 'bg-white/12'}`}>
+        <span className={`absolute left-0 top-[3px] block h-4 w-4 rounded-full bg-frost shadow transition-transform duration-500 ease-[var(--ease-expo)] ${checked ? 'translate-x-[19px]' : 'translate-x-[3px]'}`} />
       </span>
       {label}
     </button>
