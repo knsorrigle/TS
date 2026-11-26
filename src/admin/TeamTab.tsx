@@ -29,7 +29,7 @@ export function TeamTab() {
     <Panel title="Team" count={list.data.length} action={<button type="button" onClick={() => { setErr(''); setEdit({ v: { name: '', role: '', photo: '', photoFun: '', published: false } }) }} className="pill pill--spark pill--sm"><Plus size={14} /> Add member</button>}>
       <p className="border-b border-line px-5 py-3 text-[13px] text-mute-hi">The Team section stays hidden on the site until at least one member is published. The fun photo shows on hover.</p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-[14px]">
+        <table className="admin-table w-full min-w-[620px] text-left text-[14px]">
           <thead className="border-b border-line text-[11.5px] font-[600] uppercase tracking-[0.06em] text-mute-hi">
             <tr><th className="px-5 py-3">Member</th><th className="px-3 py-3">Order</th><th className="px-3 py-3">State</th><th className="px-5 py-3 text-right">Actions</th></tr>
           </thead>
@@ -45,7 +45,7 @@ export function TeamTab() {
                   <IconBtn label="Move down" onClick={() => move(i, 1)}><ArrowDown size={14} /></IconBtn></div></td>
                 <td className="px-3 py-3"><Badge on={m.published}>{m.published ? 'Published' : 'Hidden'}</Badge></td>
                 <td className="px-5 py-3"><div className="flex items-center justify-end gap-1">
-                  <IconBtn label={m.published ? 'Hide' : 'Publish'} onClick={async () => { await saveTeam({ ...m, published: !m.published }, m.id); list.reload() }}>{m.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
+                  <IconBtn quick label={m.published ? 'Hide' : 'Publish'} onClick={async () => { await saveTeam({ ...m, published: !m.published }, m.id); list.reload() }}>{m.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
                   <IconBtn label="Edit" onClick={() => { setErr(''); setEdit({ id: m.id, v: { ...m } }) }}><Pencil size={14} /></IconBtn>
                   <DeleteButton onConfirm={async () => { try { await deleteTeam(m.id); toast.success('Removed'); list.reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') } }} />
                 </div></td>

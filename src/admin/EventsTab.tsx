@@ -62,7 +62,7 @@ export function EventsTab() {
   return (
     <Panel title="Events & sessions" count={list.data.length} action={<button type="button" onClick={() => open()} className="pill pill--spark pill--sm"><Plus size={14} /> New event</button>}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-left text-[14px]">
+        <table className="admin-table w-full min-w-[820px] text-left text-[14px]">
           <thead className="border-b border-line text-[11.5px] font-[600] uppercase tracking-[0.06em] text-mute-hi">
             <tr><th className="px-5 py-3">Event</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">Seats</th><th className="px-3 py-3">State</th><th className="px-5 py-3 text-right">Actions</th></tr>
           </thead>
@@ -79,9 +79,9 @@ export function EventsTab() {
                 <td className="px-3 py-3.5"><div className="flex flex-wrap gap-1.5"><Badge on={e.published}>{e.published ? 'Published' : 'Draft'}</Badge>{e.featured && <Badge on>Featured</Badge>}<Badge>{e.status}</Badge></div></td>
                 <td className="px-5 py-3.5">
                   <div className="flex items-center justify-end gap-1">
-                    <IconBtn label={e.published ? 'Unpublish' : 'Publish'} onClick={() => quick(e, { published: !e.published }, e.published ? 'Unpublished' : 'Published')}>{e.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
-                    <IconBtn label={e.featured ? 'Unfeature' : 'Feature'} onClick={() => quick(e, { featured: !e.featured }, e.featured ? 'No longer featured' : 'Featured')}><Star size={14} className={e.featured ? 'fill-spark text-spark' : ''} /></IconBtn>
-                    {e.published && <a href={`/events/${e.slug}`} target="_blank" rel="noopener noreferrer" aria-label="View live" className="grid h-8 w-8 place-items-center rounded-full text-mute-hi hover:bg-white/5 hover:text-frost"><ExternalLink size={14} /></a>}
+                    <IconBtn quick label={e.published ? 'Unpublish' : 'Publish'} onClick={() => quick(e, { published: !e.published }, e.published ? 'Unpublished' : 'Published')}>{e.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
+                    <IconBtn quick label={e.featured ? 'Unfeature' : 'Feature'} onClick={() => quick(e, { featured: !e.featured }, e.featured ? 'No longer featured' : 'Featured')}><Star size={14} className={e.featured ? 'fill-spark text-spark' : ''} /></IconBtn>
+                    {e.published && <a href={`/events/${e.slug}`} target="_blank" rel="noopener noreferrer" aria-label="View live" className="grid h-8 w-8 shrink-0 place-items-center max-md:hidden rounded-full text-mute-hi hover:bg-white/5 hover:text-frost"><ExternalLink size={14} /></a>}
                     <IconBtn label="Edit" onClick={() => open(e)}><Pencil size={14} /></IconBtn>
                     <DeleteButton onConfirm={async () => { try { await deleteEvent(e.id); toast.success('Event deleted'); list.reload() } catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed') } }} />
                   </div>
@@ -177,6 +177,7 @@ export function EventsTab() {
   )
 }
 
-export function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick} aria-label={label} title={label} className="grid h-8 w-8 place-items-center rounded-full text-mute-hi transition-colors hover:bg-white/5 hover:text-frost">{children}</button>
+/** Row action. `quick` ones (publish, feature, pin…) also live in the editor, so phones hide them to keep the row readable. */
+export function IconBtn({ label, onClick, children, quick }: { label: string; onClick: () => void; children: React.ReactNode; quick?: boolean }) {
+  return <button type="button" onClick={onClick} aria-label={label} title={label} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-mute-hi transition-colors hover:bg-white/5 hover:text-frost ${quick ? 'max-md:hidden' : ''}`}>{children}</button>
 }

@@ -462,3 +462,15 @@ html.spark-ready .spark-poster { opacity: 0; transition-duration: 0.7s; }
 
 /* image-less frames: editorial, not blobs */
 .duo-blank { background: #070707; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); }
+
+/* Admin tables on phones: the row scrolls sideways under the actions, which stay pinned at the right edge. */
+@media (max-width: 767px) {
+  .admin-table tr > :last-child {
+    position: sticky; right: 0; z-index: 1;
+    background: var(--color-ink);
+    box-shadow: -14px 0 14px -10px rgb(0 0 0 / 0.9);
+  }
+  .admin-table thead tr > :last-child { background: var(--color-ink); }
+}
+/* the admin tab strip fades at whichever edge has more tabs hidden */
+.tab-fade { mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 0px)), transparent 100%); }

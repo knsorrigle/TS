@@ -46,15 +46,22 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
 /** Side drawer editor: Esc closes (unless saving), focus moves in, background is inert. */
 export function Drawer({ title, open, onClose, children, footer, busy }: { title: string; open: boolean; onClose: () => void; children: ReactNode; footer: ReactNode; busy?: boolean }) {
   const panel = useRef<HTMLDivElement>(null)
+  // Latest close handler / busy flag without re-running the open effect: parents pass a fresh
+  // onClose every render, and re-running would yank focus back to the first field on each keystroke.
+  const latest = useRef({ onClose, busy })
+  latest.current = { onClose, busy }
   useEffect(() => {
     if (!open) return
     const prev = document.activeElement as HTMLElement | null
-    setTimeout(() => panel.current?.querySelector<HTMLElement>('input, textarea, select')?.focus(), 80)
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose() }
+    const t = setTimeout(() => {
+      // only on open, and never over a field the user already clicked into
+      if (panel.current && !panel.current.contains(document.activeElement)) panel.current.querySelector<HTMLElement>('input, textarea, select')?.focus({ preventScroll: true })
+    }, 80)
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !latest.current.busy) latest.current.onClose() }
     addEventListener('keydown', key)
     document.documentElement.style.overflow = 'hidden'
-    return () => { removeEventListener('keydown', key); document.documentElement.style.overflow = ''; prev?.focus?.() }
-  }, [open, busy, onClose])
+    return () => { clearTimeout(t); removeEventListener('keydown', key); document.documentElement.style.overflow = ''; prev?.focus?.({ preventScroll: true }) }
+  }, [open])
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[140] flex justify-end">
@@ -131,11 +138,11 @@ export function DeleteButton({ onConfirm, label = 'Delete' }: { onConfirm: () =>
         setBusy(true)
         try { await onConfirm() } finally { setBusy(false); setArmed(false) }
       }}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors ${armed ? 'bg-ember/15 text-ember' : 'text-mute-hi hover:bg-white/5 hover:text-frost'}`}
+      className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] max-md:px-2.5 transition-colors ${armed ? 'bg-ember/15 text-ember' : 'text-mute-hi hover:bg-white/5 hover:text-frost'}`}
       aria-label={armed ? `Confirm ${label.toLowerCase()}` : label}
     >
       {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-      {armed ? 'Click again' : label}
+      <span className={armed ? '' : 'max-md:sr-only'}>{armed ? 'Click again' : label}</span>
     </button>
   )
 }

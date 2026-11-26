@@ -33,7 +33,7 @@ export function BulletinsTab() {
   return (
     <Panel title="Bulletins & news" count={list.data.length} action={<button type="button" onClick={() => { setErr(''); setEdit({ v: blank() }) }} className="pill pill--spark pill--sm"><Plus size={14} /> New bulletin</button>}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-[14px]">
+        <table className="admin-table w-full min-w-[720px] text-left text-[14px]">
           <thead className="border-b border-line text-[11.5px] font-[600] uppercase tracking-[0.06em] text-mute-hi">
             <tr><th className="px-5 py-3">Title</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">State</th><th className="px-5 py-3 text-right">Actions</th></tr>
           </thead>
@@ -45,8 +45,8 @@ export function BulletinsTab() {
                 <td className="t-num px-3 py-3.5 text-frost/85">{formatDateShort(a.date)}</td>
                 <td className="px-3 py-3.5"><div className="flex flex-wrap gap-1.5"><Badge on={a.published}>{a.published ? 'Published' : 'Draft'}</Badge>{a.pinned && <Badge on>Pinned</Badge>}{a.priority !== 'Normal' && <Badge>{a.priority}</Badge>}</div></td>
                 <td className="px-5 py-3.5"><div className="flex items-center justify-end gap-1">
-                  <IconBtn label={a.published ? 'Unpublish' : 'Publish'} onClick={() => quick(a, { published: !a.published }, a.published ? 'Unpublished' : 'Published')}>{a.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
-                  <IconBtn label={a.pinned ? 'Unpin' : 'Pin'} onClick={() => quick(a, { pinned: !a.pinned }, a.pinned ? 'Unpinned' : 'Pinned')}><Pin size={14} className={a.pinned ? 'fill-spark text-spark' : ''} /></IconBtn>
+                  <IconBtn quick label={a.published ? 'Unpublish' : 'Publish'} onClick={() => quick(a, { published: !a.published }, a.published ? 'Unpublished' : 'Published')}>{a.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
+                  <IconBtn quick label={a.pinned ? 'Unpin' : 'Pin'} onClick={() => quick(a, { pinned: !a.pinned }, a.pinned ? 'Unpinned' : 'Pinned')}><Pin size={14} className={a.pinned ? 'fill-spark text-spark' : ''} /></IconBtn>
                   <IconBtn label="Edit" onClick={() => { setErr(''); setEdit({ id: a.id, v: { ...a, relatedEventSlug: a.relatedEventSlug ?? '' } }) }}><Pencil size={14} /></IconBtn>
                   <DeleteButton onConfirm={async () => { try { await deleteAnnouncement(a.id); toast.success('Bulletin deleted'); list.reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Delete failed') } }} />
                 </div></td>

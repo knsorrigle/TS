@@ -26,7 +26,7 @@ export function PastTab() {
   return (
     <Panel title="Past event gallery" count={list.data.length} action={<button type="button" onClick={() => { setErr(''); setEdit({ v: blank() }) }} className="pill pill--spark pill--sm"><Plus size={14} /> Add past event</button>}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-[14px]">
+        <table className="admin-table w-full min-w-[680px] text-left text-[14px]">
           <thead className="border-b border-line text-[11.5px] font-[600] uppercase tracking-[0.06em] text-mute-hi">
             <tr><th className="px-5 py-3">Event</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">People</th><th className="px-3 py-3">State</th><th className="px-5 py-3 text-right">Actions</th></tr>
           </thead>
@@ -41,7 +41,7 @@ export function PastTab() {
                 <td className="t-num px-3 py-3.5 text-frost/85">{p.participants}</td>
                 <td className="px-3 py-3.5"><Badge on={p.published}>{p.published ? 'Published' : 'Hidden'}</Badge></td>
                 <td className="px-5 py-3.5"><div className="flex items-center justify-end gap-1">
-                  <IconBtn label={p.published ? 'Hide' : 'Publish'} onClick={async () => { try { await savePast({ ...p, published: !p.published }, p.id); list.reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') } }}>{p.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
+                  <IconBtn quick label={p.published ? 'Hide' : 'Publish'} onClick={async () => { try { await savePast({ ...p, published: !p.published }, p.id); list.reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') } }}>{p.published ? <EyeOff size={14} /> : <Eye size={14} />}</IconBtn>
                   <IconBtn label="Edit" onClick={() => { setErr(''); setEdit({ id: p.id, v: { ...p } }) }}><Pencil size={14} /></IconBtn>
                   <DeleteButton onConfirm={async () => { try { await deletePast(p.id); toast.success('Deleted'); list.reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Delete failed') } }} />
                 </div></td>

@@ -78,7 +78,7 @@ export function RegistrationsTab() {
         <label><span className="sr-only">Payment</span><Select options={['All payments', 'UTR not checked', 'UTR checked', 'No payment']} value={pay} onChange={(e) => setPay(e.target.value)} /></label>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1020px] text-left text-[14px]">
+        <table className="admin-table w-full min-w-[1020px] text-left text-[14px]">
           <thead className="border-b border-line text-[11.5px] font-[600] uppercase tracking-[0.06em] text-mute-hi">
             <tr><th className="px-5 py-3">Student / team</th><th className="px-3 py-3">Roll</th><th className="px-3 py-3">Event</th><th className="px-3 py-3">Dept · Year</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Payment</th><th className="px-5 py-3 text-right">When</th><th className="px-3 py-3"><span className="sr-only">Actions</span></th></tr>
           </thead>

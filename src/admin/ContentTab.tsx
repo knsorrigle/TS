@@ -131,13 +131,16 @@ export function ContentTab() {
 
       {/* sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-[120] border-t border-line bg-ink/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-3 px-[var(--gutter)] py-3">
-          <p className="text-[13.5px] text-mute-hi" aria-live="polite">{dirty ? 'Unsaved changes' : 'All changes saved'}</p>
-          <div className="flex gap-2">
-            <a href="/" target="_blank" rel="noopener noreferrer" className="pill pill--sm"><ExternalLink size={14} /> View site</a>
-            <button type="button" className="pill pill--sm" title="Load the original copy (not saved until you press Save)"
+        <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-3 px-[var(--gutter)] py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <p className="flex min-w-0 items-center gap-2 text-[13.5px] text-mute-hi" aria-live="polite">
+            <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${dirty ? 'bg-amber shadow-[0_0_8px_rgb(255_196_107/0.8)]' : 'bg-white/25'}`} />
+            <span className="truncate">{dirty ? 'Unsaved' : 'Saved'}<span className="max-sm:hidden">{dirty ? ' changes' : ' — live on the site'}</span></span>
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <a href="/" target="_blank" rel="noopener noreferrer" aria-label="View site" title="View site" className="pill pill--sm max-sm:!w-9 max-sm:!px-0"><ExternalLink size={14} /><span className="max-sm:hidden">View site</span></a>
+            <button type="button" aria-label="Load default copy" title="Load the original copy (not saved until you press Save)" className="pill pill--sm max-sm:!w-9 max-sm:!px-0"
               onClick={() => { if (confirm('Replace every field with the original site copy? Nothing is saved until you press Save.')) { setC(structuredClone(DEFAULT_CONTENT)); setRev((n) => n + 1) } }}>
-              <RotateCcw size={14} /> Defaults
+              <RotateCcw size={14} /><span className="max-sm:hidden">Defaults</span>
             </button>
             <button type="button" disabled={!dirty || busy} onClick={() => { setC(structuredClone(saved!)); setRev((n) => n + 1) }} className="pill pill--sm">Discard</button>
             <button type="button" disabled={!dirty || busy} onClick={save} className="pill pill--solid pill--sm">{busy ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : 'Save'}</button>

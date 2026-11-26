@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Eye, EyeOff, Loader2, LogOut, ShieldAlert, ArrowLeft, CalendarDays, Megaphone, Images, Users, Database, UserRound, Type } from 'lucide-react'
 import { isDemo, signIn, signOut, watchAdmin, type AdminState } from './adminApi'
@@ -106,6 +106,22 @@ function Login({ denied, elsewhere }: { denied: boolean; elsewhere: boolean }) {
 function Dashboard({ email, role }: { email: string; role: string }) {
   const [params, setParams] = useSearchParams()
   const tab = TABS.find((t) => t.id === params.get('tab')) ?? TABS[0]
+  const strip = useRef<HTMLDivElement>(null)
+  // keep the open tab in view on phones, and fade whichever edge hides more tabs
+  useEffect(() => {
+    const el = strip.current
+    if (!el) return
+    const fade = () => {
+      el.style.setProperty('--fade-l', el.scrollLeft > 4 ? '36px' : '0px')
+      el.style.setProperty('--fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? '36px' : '0px')
+    }
+    const on = el.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (on && el.scrollWidth > el.clientWidth) el.scrollTo({ left: on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2, behavior: 'smooth' })
+    fade()
+    el.addEventListener('scroll', fade, { passive: true })
+    addEventListener('resize', fade)
+    return () => { el.removeEventListener('scroll', fade); removeEventListener('resize', fade) }
+  }, [tab.id])
   const Current = tab.el
   const [leaving, setLeaving] = useState(false)
   return (
@@ -121,7 +137,7 @@ function Dashboard({ email, role }: { email: string; role: string }) {
         </div>
       </header>
 
-      <div role="tablist" aria-label="Admin sections" className="no-scrollbar -mx-[var(--gutter)] mt-8 flex gap-1 overflow-x-auto border-b border-line px-[var(--gutter)]">
+      <div ref={strip} role="tablist" aria-label="Admin sections" className="no-scrollbar tab-fade -mx-[var(--gutter)] mt-8 flex gap-1 overflow-x-auto border-b border-line px-[var(--gutter)]">
         {TABS.map((t) => {
           const on = t.id === tab.id
           const Icon = t.icon
