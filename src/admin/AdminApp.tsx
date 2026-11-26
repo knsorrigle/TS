@@ -10,6 +10,7 @@ import { RegistrationsTab } from './RegistrationsTab'
 import { TeamTab } from './TeamTab'
 import { ContentTab } from './ContentTab'
 import { SchemaTab } from './SchemaTab'
+import { UpdateNotice } from './UpdateNotice'
 import { Field, Input } from './ui'
 
 const TABS = [
@@ -35,6 +36,7 @@ export default function AdminApp() {
       {state.kind === 'loading' && <div className="grid min-h-[60vh] place-items-center"><Loader2 className="animate-spin text-spark" aria-label="Checking your session" /></div>}
       {(state.kind === 'signed-out' || state.kind === 'denied' || state.kind === 'elsewhere') && <Login denied={state.kind === 'denied'} elsewhere={state.kind === 'elsewhere'} />}
       {state.kind === 'admin' && <Dashboard email={state.email} role={state.role} />}
+      <UpdateNotice />
     </div>
   )
 }
